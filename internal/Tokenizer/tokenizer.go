@@ -9,7 +9,7 @@
 package Tokenizer
 
 import (
-	repl "DataGoesBase/internal/REPL"
+	repl "github.com/razzat008/letsgodb/internal/REPl"
 	"strings"
 )
 
