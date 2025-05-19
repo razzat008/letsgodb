@@ -38,15 +38,16 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 	var tokens []Token
 
 	for _, currentToken := range rawTokens {
-		switch strings.ToUpper(currentToken) {
+		upperToken := strings.ToUpper(currentToken)
+		switch upperToken {
 		case "SELECT": 
-			tokens = append(tokens, Token{Type: TokenSelect, CurrentToken: currentToken})
+			tokens = append(tokens, Token{Type: TokenSelect, CurrentToken: upperToken})
 		case "FROM":
-			tokens = append(tokens, Token{Type: TokenFrom, CurrentToken: currentToken})
+			tokens = append(tokens, Token{Type: TokenFrom, CurrentToken: upperToken})
 		case "WHERE":
-			tokens = append(tokens, Token{Type: TokenWhere, CurrentToken: currentToken})
+			tokens = append(tokens, Token{Type: TokenWhere, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
-			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: currentToken})
+			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
 		default:
 			if strings.HasPrefix(currentToken, "'") && strings.HasSuffix(currentToken, "'") {
 				// checking for values like 'School' ; i.e. quoted values
