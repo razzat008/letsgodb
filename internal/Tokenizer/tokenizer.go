@@ -29,6 +29,9 @@ const (
 	TokenOperator   TokenType = "OPERATOR"
 	TokenValue      TokenType = "VALUE"
 	TokenUnknown    TokenType = "UNKNOWN"
+	TokenSemiColon  TokenType = "SEMICOLON"
+	TokenEOF        TokenType = "EOF" 
+	TokenComma 			TokenType = "COMMA"
 )
 
 // tokenizes the user input []byte into string
@@ -48,6 +51,10 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenWhere, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
 			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
+		case ";": 
+			tokens = append(tokens, Token{Type: TokenSemiColon, CurrentToken: upperToken})
+		case ",": 
+			tokens = append(tokens, Token{Type: TokenComma, CurrentToken: upperToken})
 		default:
 			if strings.HasPrefix(currentToken, "'") && strings.HasSuffix(currentToken, "'") {
 				// checking for values like 'School' ; i.e. quoted values
@@ -60,6 +67,7 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 	}
 	return tokens
 }
+
 /*
 A Token may have two characteristics 
 - it's name(value) and it's type
