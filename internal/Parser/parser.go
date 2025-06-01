@@ -8,7 +8,8 @@ idea
 package parser
 
 import (
-	tok	"github.com/razzat008/letsgodb/internal/Tokenizer"
+	"fmt"
+	tok "github.com/razzat008/letsgodb/internal/Tokenizer"
 )
 
 //Parser Struct
@@ -32,39 +33,14 @@ func ParseProgram (Tokens []tok.Token){
 	p := &Parser{}
 	p.initParser(Tokens)
 
-	// Until and unless token Type EOF is found keep running the loop
-	for p.currentToken.Type != tok.TokenEOF {
-		p.ParseStatement() //parses the the token based on it's type
-		p.nextToken() 		 //gets the next token if exist
-	}
-}
-
-func (p* Parser) ParseStatement(){
-	switch p.Tokens[p.position].Type {
-
+	// This is the switch case for your next token type
+	switch p.currentToken.Type {
 	case tok.TokenSelect:
-		p.parseSwitchStatement()
-		break
-	case tok.TokenFrom:
-		break
-	case tok.TokenWhere:
-		break
-	case tok.TokenOperator:
-		break
-	case tok.TokenComma:
-		break
-	case tok.TokenIdentifier:
-		break
-	case tok.TokenValue:
-		break
-	case tok.TokenUnknown:
-		break
+		p.parseSelect()
+	default: 
+		fmt.Println("Unknown Operation detected")
 	}
 }
-
-// Parsing switch statement starts here
-func (p* Parser) parseSwitchStatement(){}
-
 
 func (p* Parser) nextToken (){
 	p.position ++
@@ -79,3 +55,21 @@ func (p* Parser) nextToken (){
 		p.peekToken = p.Tokens[p.position + 1]
 	}
 }
+
+// This function checks if expected token is seen
+func (p* Parser) expectPeek(t tok.TokenType) bool {
+	if p.peekToken.Type ==  t {
+		return true
+	} 
+	return false
+}
+
+// Parsing starts here
+func (p* Parser) parseSelect(){}
+func (p* Parser) parseFrom(){}
+func (p* Parser) parseWhere(){}
+func (p* Parser) parseOperator(){}
+func (p* Parser) parseComma(){}
+func (p* Parser) parseIdentifier(){}
+func (p* Parser) parseValue(){}
+func (p* Parser) parseUnknown(){}
