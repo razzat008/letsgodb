@@ -32,6 +32,7 @@ const (
 	TokenSemiColon  TokenType = "SEMICOLON"
 	TokenEOF        TokenType = "EOF" 
 	TokenComma 			TokenType = "COMMA"
+	TokenAsterisk 	TokenType = "ASTERISK"
 )
 
 // tokenizes the user input []byte into string
@@ -55,6 +56,8 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenSemiColon, CurrentToken: upperToken})
 		case ",": 
 			tokens = append(tokens, Token{Type: TokenComma, CurrentToken: upperToken})
+		case "*": 
+			tokens = append(tokens, Token{Type: TokenAsterisk, CurrentToken: upperToken})
 		default:
 			if strings.HasPrefix(currentToken, "'") && strings.HasSuffix(currentToken, "'") {
 				// checking for values like 'School' ; i.e. quoted values
