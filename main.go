@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
-
 	repl "github.com/razzat008/letsgodb/internal/REPl"
 	tok "github.com/razzat008/letsgodb/internal/Tokenizer"
+	par "github.com/razzat008/letsgodb/internal/Parser"
 )
 
 func main() {
@@ -13,11 +12,8 @@ func main() {
 	for {
 		repl.PrintDB()
 		lineBuffer.UserInput() // repl.InitLineBuffer.UserInput
-		toks := tok.Tokenizer(lineBuffer)
-		for _, tok := range toks {
-			fmt.Printf("[%s] %s\n", tok.CurrentToken, tok.Type)
-		}
-
+		// since tok.tokenizer returns slice of token struct 
+		par.ParseProgram(tok.Tokenizer(lineBuffer))	
 		lineBuffer.Reset()
 	}
 }
