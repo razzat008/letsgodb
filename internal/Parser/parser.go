@@ -56,20 +56,30 @@ func (p* Parser) nextToken (){
 	}
 }
 
-// This function checks if expected token is seen
-func (p* Parser) expectPeek(t tok.TokenType) bool {
-	if p.peekToken.Type ==  t {
-		return true
-	} 
-	return false
-}
-
 // Parsing starts here
-func (p* Parser) parseSelect(){}
-func (p* Parser) parseFrom(){}
-func (p* Parser) parseWhere(){}
-func (p* Parser) parseOperator(){}
-func (p* Parser) parseComma(){}
-func (p* Parser) parseIdentifier(){}
-func (p* Parser) parseValue(){}
-func (p* Parser) parseUnknown(){}
+func (p* Parser) parseSelect(){
+	// get next token after select
+	p.nextToken()
+	// collecting the columns name {Identifier}
+	columns := []string{}
+	for {
+		if (p.currentToken.Type != tok.TokenIdentifier) && 
+			 (p.currentToken.Type == tok.TokenAsterisk){
+			break;
+		}
+		columns = append(columns, p.currentToken.CurrentToken)
+		p.nextToken()
+		// later we will implement for comma
+	}
+	if p.currentToken.Type != tok.TokenFrom {
+  	fmt.Println("Expected From clause")
+		return
+	}
+
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Println("Expected Table name")
+		return 
+	}
+	table := p.currentToken.CurrentToken
+}
