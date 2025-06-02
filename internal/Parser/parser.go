@@ -20,7 +20,7 @@ type Parser struct {
 	peekToken 		tok.Token
 }
 
-// Initially the value stored in the parser
+/* Initializing Parser  */
 func (p* Parser) initParser(Tokens []tok.Token){
 	p.Tokens 			 = Tokens 								//Stored tokens
 	p.position     = 0          						//Tracks the current position in parsing 
@@ -29,14 +29,16 @@ func (p* Parser) initParser(Tokens []tok.Token){
 }
 
 
+/* Entry point of the parser */
 func ParseProgram (Tokens []tok.Token){
 	p := &Parser{}
 	p.initParser(Tokens)
 
-	// This is the switch case for your next token type
+	/* gets token type of Tokens[0] */
 	switch p.currentToken.Type {
 	case tok.TokenSelect:
 		p.parseSelect()
+	/* Todo: Insert, Update, Delete.....*/
 	default: 
 		fmt.Println("Unknown Operation detected")
 	}
@@ -56,21 +58,37 @@ func (p* Parser) nextToken (){
 	}
 }
 
-// Parsing starts here
+
+/*
+	-----Currently Parses like this--------------------
+ 	SELECT COLUMN FROM TABLE {optional:WHERE Condition} ; EOF
+*/
 func (p* Parser) parseSelect(){
-	// get next token after select
+	/* If token after select is not an identifier or an asterisk */
+		if (p.peekToken.Type != tok.TokenIdentifier) && 
+			 (p.peekToken.Type != tok.TokenAsterisk){
+		fmt.Println("Column name or All column expected")
+		return 
+	}
+
+	/* getting next token after select*/
 	p.nextToken()
-	// collecting the columns name {Identifier}
+
+	/* collecting the column names or asterisk */
 	columns := []string{}
+
+	/* loops through all identifiers */
 	for {
+		/* If current token is not an identifier or asterisk (could be FROM) exit loop */
 		if (p.currentToken.Type != tok.TokenIdentifier) && 
-			 (p.currentToken.Type == tok.TokenAsterisk){
+			 (p.currentToken.Type != tok.TokenAsterisk){
 			break;
 		}
 		columns = append(columns, p.currentToken.CurrentToken)
 		p.nextToken()
-		// later we will implement for comma
+		/* TODO: later we will implement for comma */
 	}
+
 	if p.currentToken.Type != tok.TokenFrom {
   	fmt.Println("Expected From clause")
 		return
@@ -81,5 +99,26 @@ func (p* Parser) parseSelect(){
 		fmt.Println("Expected Table name")
 		return 
 	}
+	/* stores the table name to perform operation on the table*/
 	table := p.currentToken.CurrentToken
+
+	p.nextToken()
+	if  p.currentToken.Type == tok.TokenWhere {
+		/* TODO: Complete the Where part */	
+		/* What levels of complexity are We adding on it */
+	}
+	if p.currentToken.Type != tok.TokenSemiColon {
+		fmt.Println("Expected Semicolon")
+		return
+	}
+	p.nextToken()	
+	if p.currentToken.Type != tok.TokenEOF {
+		fmt.Println("Additional token recieved after Semicolon")	
+	}
+	
+	/* 
+	Note:
+	- For Now we are ignoring the multiline input parsing like in sql 
+		if semicolon is not recieved 
+	*/
 }
