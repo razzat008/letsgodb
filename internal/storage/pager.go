@@ -20,6 +20,8 @@ type Pager struct{
 Opens a file for read/write oprations 
 gets the file info like size and number of files in the disk
 returns the pager struct 
+basically set up the Pager and 
+it works like a constructor as it is called once 
 */
 func NewPager(filename string) *Pager {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
@@ -90,7 +92,41 @@ func(p *Pager) GetPage(pageNum uint32) []byte{
 	}
 //The page is stored in the pages map so future requests for the same 
 	//page can be served from memory (faster).
-
 	p.pages[pageNum] = page
 	return page
+}
+
+// WritePage just writes the data into the page on disk with the given 
+//offset 
+
+func (p *Pager) WritePage(pageNum int, data []byte) error {
+    if len(data) > PageSize {
+        return fmt.Errorf("data exceeds page size")
+    }
+    _, err := p.file.WriteAt(data, int64(pageNum)*int64(PageSize))
+    return err
+}
+
+
+/* a wrapper around WritePage that writes a page to disk at the specicified
+page number*/
+
+//the wrapper need to some other functonalities that is yet to be written
+func (p *Pager) FlushPage(pageNum uint32, data []byte) error {
+	return p.WritePage(int(pageNum), data)
+}
+
+//it allocates a new blank page in memory and assigns the next page number
+//and returns that newly allocated page number
+//it is called whenever a new page is needed
+func (p *Pager) AllocatePage() uint32{
+	pageNum := uint32(p.maxPage)
+	p.maxPage++ //adds and assigns the next unused page
+	p.pages[pageNum]  = make([]byte, PageSize)
+	return uint32(pageNum)
+}
+
+//return the internal file pointer used by the Pagger for disk I/O
+func (p *Pager) File() *os.File {
+	return p.file
 }
