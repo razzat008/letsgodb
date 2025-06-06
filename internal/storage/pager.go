@@ -9,19 +9,20 @@ import(
 const PageSize = 4096 // each page is 4kb
 
 type Pager struct{
-	file *os.File			// file the stores data in Disk
-	pages map[uint32][]byte // in memory cache of page number 
-	pageSize int 		// 4kb
-	maxPage int		//number of pages that exists in the disk
-	pageNum uint32		//to track the pages for allocation
+	file     *os.File						// file the stores data in Disk
+	pages		 map[uint32][]byte // in memory cache of page number 
+	pageSize int 						 	// 4kb
+	maxPage  int						 //number of pages that exists in the disk
+	pageNum  uint32					//to track the pages for allocation
 }
 
 /*
-Opens a file for read/write oprations 
-gets the file info like size and number of files in the disk
-returns the pager struct 
-basically set up the Pager and 
-it works like a constructor as it is called once 
+	Note: 
+		Opens a file for read/write operations 
+		gets the file info like size and number of files in the disk
+		returns the pager struct 
+		basically set up the Pager and 
+		it works like a constructor as it is called once 
 */
 func NewPager(filename string) *Pager {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
@@ -34,47 +35,47 @@ func NewPager(filename string) *Pager {
 	maxPage := int(fileSize/ int64(PageSize))
 
 	return &Pager{
-		file: file,
-		pages: make(map[uint32][]byte),
+		file: 		file,
+		pages: 		make(map[uint32][]byte),
 		pageSize: PageSize,
-		maxPage: maxPage,
+		maxPage: 	maxPage,
 	}
 }
 
 func (p *Pager) ReadPage(pageNum int) ([]byte, error){
 
-    offset := int64(pageNum) * int64(p.pageSize)
+	offset := int64(pageNum) * int64(p.pageSize)
 
-    // Seek to the correct offset in the file
+	// Seek to the correct offset in the file
 	// for example if the pageNum is 4 it moves the read pointer to 4*4096 byte
-    _, err := p.file.Seek(offset, 0)
-    if err != nil {
-        return nil, err
-    }
+	_, err := p.file.Seek(offset, 0)
+	if err != nil {
+		return nil, err
+	}
 
-    // Allocate 4KB page buffer
-    buf := make([]byte, p.pageSize)
+	// Allocate 4KB page buffer
+	buf := make([]byte, p.pageSize)
 
-		//the contents of the file is retrived and it fills the buf wiht the data
-		//starting from the offset set by Seek
-    n, err := p.file.Read(buf)
-    if err != nil && err.Error() != "EOF" {
-        return nil, err
-    }
+	//the contents of the file is retrived and it fills the buf wiht the data
+	//starting from the offset set by Seek
+	n, err := p.file.Read(buf)
+	if err != nil && err.Error() != "EOF" {
+		return nil, err
+	}
 
-	/*
+/*
 	this block handles the case when the bytes read form the file doesn't
 	fill the 4kb buffer. It fills the remaning space with 0 to avoid inconsistancy
 	and partial page readings 
-	*/
-    if n < p.pageSize {
-        // Zero out the rest if the file is smaller than the page
-        for i := n; i < p.pageSize; i++ {
-            buf[i] = 0
-        }
-    }
+*/
+	if n < p.pageSize {
+		// Zero out the rest if the file is smaller than the page
+		for i := n; i < p.pageSize; i++ {
+			buf[i] = 0
+		}
+	}
 
-    return buf, nil
+	return buf, nil
 }
 
 func(p *Pager) GetPage(pageNum uint32) []byte{
@@ -90,7 +91,7 @@ func(p *Pager) GetPage(pageNum uint32) []byte{
 	if err != nil{
 		panic(err)
 	}
-//The page is stored in the pages map so future requests for the same 
+	//The page is stored in the pages map so future requests for the same 
 	//page can be served from memory (faster).
 	p.pages[pageNum] = page
 	return page
@@ -100,11 +101,11 @@ func(p *Pager) GetPage(pageNum uint32) []byte{
 //offset 
 
 func (p *Pager) WritePage(pageNum int, data []byte) error {
-    if len(data) > PageSize {
-        return fmt.Errorf("data exceeds page size")
-    }
-    _, err := p.file.WriteAt(data, int64(pageNum)*int64(PageSize))
-    return err
+	if len(data) > PageSize {
+		return fmt.Errorf("data exceeds page size")
+	}
+	_, err := p.file.WriteAt(data, int64(pageNum)*int64(PageSize))
+	return err
 }
 
 
