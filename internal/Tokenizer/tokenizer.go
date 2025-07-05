@@ -9,8 +9,9 @@
 package Tokenizer
 
 import (
-	repl "github.com/razzat008/letsgodb/internal/REPl"
 	"strings"
+
+	repl "github.com/razzat008/letsgodb/internal/REPl"
 )
 
 type TokenType string // a custom type for storing our types
@@ -39,29 +40,52 @@ const (
 func tokenizeInput(input string) []string {
 	var tokens []string
 	var current strings.Builder
+	i := 0
+	for i < len(input) {
+		ch := input[i]
 
-	for _, ch := range input {
-		switch ch {
-		case ' ', '\t', '\n':
+		// Handle whitespace
+		if ch == ' ' || ch == '\t' || ch == '\n' {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
 				current.Reset()
 			}
-		case ';', ',', '*', '=', '<', '>', '(', ')':
+			i++
+			continue
+		}
+
+		// Handle multi-character operators
+		if i+1 < len(input) {
+			twoChar := input[i : i+2]
+			if twoChar == ">=" || twoChar == "<=" || twoChar == "!=" {
+				if current.Len() > 0 {
+					tokens = append(tokens, current.String())
+					current.Reset()
+				}
+				tokens = append(tokens, twoChar)
+				i += 2
+				continue
+			}
+		}
+
+		// Handle single-character symbols
+		if strings.ContainsRune(";,*=<>()", rune(ch)) {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
 				current.Reset()
 			}
 			tokens = append(tokens, string(ch))
-		default:
-			current.WriteRune(ch)
+			i++
+			continue
 		}
-	}
 
+		// Default: add to current token
+		current.WriteByte(ch)
+		i++
+	}
 	if current.Len() > 0 {
 		tokens = append(tokens, current.String())
 	}
-
 	return tokens
 }
 
