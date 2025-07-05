@@ -8,9 +8,39 @@ idea
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
+
 	tok "github.com/razzat008/letsgodb/internal/Tokenizer"
 )
+
+// Statement interface for all SQL statements
+type Statement interface {
+	StatementNode()
+}
+
+// AST structs for parsed SQL statements
+type SelectStatement struct {
+	Columns []string
+	Table   string
+	Where   *WhereClause // nil if no WHERE clause
+}
+
+func (s *SelectStatement) StatementNode() {}
+
+type InsertStatement struct {
+	Table   string
+	Columns []string
+	Values  []string
+}
+
+func (i *InsertStatement) StatementNode() {}
+
+type WhereClause struct {
+	Column   string
+	Operator string
+	Value    string
+}
 
 // Parser Struct
 type Parser struct {
@@ -37,22 +67,31 @@ func (p *Parser) initParser(Tokens []tok.Token) {
 }
 
 /* Entry point of the parser */
-func ParseProgram(Tokens []tok.Token) {
+
+func ParseProgram(Tokens []tok.Token) Statement {
 	if len(Tokens) == 0 {
 		fmt.Println("Empty input: no tokens to parse")
-		return
+		return nil
 	}
 
 	p := &Parser{}
 	p.initParser(Tokens)
 
-	/* gets token type of Tokens[0] */
 	switch p.currentToken.Type {
 	case tok.TokenSelect:
-		p.parseSelect()
-	/* Todo: Insert, Update, Delete.....*/
+		stmt := p.parseSelect()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed SELECT statement:", string(b))
+		return stmt
+	// case tok.TokenInsert:
+	// 	stmt := p.parseInsert()
+	// 	b, _ := json.MarshalIndent(stmt, "", "  ")
+	// 	fmt.Println("Parsed INSERT statement:", string(b))
+	// 	return stmt
+	// Todo: Update, Delete, etc.
 	default:
 		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
+		return nil
 	}
 }
 
@@ -75,83 +114,107 @@ func (p *Parser) nextToken() {
 	}
 }
 
-/*
-		-----Currently Parses like this--------------------
-	 	SELECT COLUMN FROM TABLE {optional:WHERE Condition} ; EOF
-*/
-func (p *Parser) parseSelect() {
-	/* If token after SELECT is not an identifier or an asterisk */
+func (p *Parser) parseSelect() *SelectStatement {
+	// If token after SELECT is not an identifier or an asterisk
 	if p.peekToken.Type != tok.TokenIdentifier && p.peekToken.Type != tok.TokenAsterisk {
 		fmt.Printf("Syntax error: expected column name or '*' after SELECT, got %v\n", p.peekToken.Type)
-		return
+		return nil
 	}
 
-	/* Move to the token after SELECT */
+	// Move to the token after SELECT
 	p.nextToken()
 
-	/* Collecting column names or '*' */
+	// Collecting column names or '*'
 	columns := []string{}
 
-	/* Loop through all valid column tokens (identifiers or asterisk) */
+	// Loop through all valid column tokens (identifiers or asterisk)
 	for {
-		/* If current token is not valid as a column name, break the loop */
 		if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenAsterisk {
 			break
 		}
 
+		// append column name to columns slice
 		columns = append(columns, p.currentToken.CurrentToken)
 		p.nextToken()
 
-		// TODO: Handle comma-separated columns like SELECT name, age FROM ...
+		// Handle comma-separated columns like SELECT name, age FROM ...
+		if p.currentToken.Type == tok.TokenComma {
+			p.nextToken()
+			continue
+		}
 	}
 
-	/* Expecting FROM keyword after columns */
+	// Expecting FROM keyword after columns
 	if p.currentToken.Type != tok.TokenFrom {
 		fmt.Printf("Syntax error: expected FROM clause, got %v\n", p.currentToken.Type)
-		return
+		return nil
 	}
 
 	p.nextToken()
 
-	/* Expecting a valid table name (identifier) after FROM */
+	// Expecting a valid table name (identifier) after FROM
 	if p.currentToken.Type != tok.TokenIdentifier {
 		fmt.Printf("Syntax error: expected table name after FROM, got %v\n", p.currentToken.Type)
-		return
+		return nil
 	}
 
-	/* Store the table name for later use */
+	// Store the table name for later use
 	table := p.currentToken.CurrentToken
 
 	p.nextToken()
 
-	/* Optional: Handle WHERE clause */
+	// Optional: Handle WHERE clause
+	var where *WhereClause
 	if p.currentToken.Type == tok.TokenWhere {
-		/* TODO: Parse WHERE conditions here */
-		fmt.Println("WHERE clause found — not yet implemented")
 		p.nextToken()
+		// Expect: IDENTIFIER OPERATOR VALUE
+		if p.currentToken.Type != tok.TokenIdentifier {
+			fmt.Printf("Syntax error: expected column name in WHERE, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		whereColumn := p.currentToken.CurrentToken
+		p.nextToken()
+		if p.currentToken.Type != tok.TokenOperator {
+			fmt.Printf("Syntax error: expected operator in WHERE, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		whereOperator := p.currentToken.CurrentToken
+		p.nextToken()
+		if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenValue {
+			fmt.Printf("Syntax error: expected value in WHERE, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		whereValue := p.currentToken.CurrentToken
+		p.nextToken()
+		where = &WhereClause{
+			Column:   whereColumn,
+			Operator: whereOperator,
+			Value:    whereValue,
+		}
+
+		// Expecting semicolon to end the query
+		if p.currentToken.Type != tok.TokenSemiColon {
+			fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
+			return nil
+		}
+
+		p.nextToken()
+
+		// Ensure no extra tokens after semicolon
+		if p.currentToken.Type != tok.TokenEOF {
+			fmt.Printf("Syntax warning: unexpected token after semicolon: %v\n", p.currentToken.Type)
+		}
+
+		return &SelectStatement{
+			Columns: columns,
+			Table:   table,
+			Where:   where,
+		}
 	}
 
-	/* Expecting semicolon to end the query */
-	if p.currentToken.Type != tok.TokenSemiColon {
-		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
-		return
+	return &SelectStatement{
+		Columns: columns,
+		Table:   table,
+		Where:   where,
 	}
-
-	p.nextToken()
-
-	/* Ensure no extra tokens after semicolon */
-	if p.currentToken.Type != tok.TokenEOF {
-		fmt.Printf("Syntax warning: unexpected token after semicolon: %v\n", p.currentToken.Type)
-	}
-
-	/*
-		Note:
-		- For now, we are ignoring multiline SQL input
-		- Semicolon is required to indicate end of statement
-	*/
-
-	/* Debug output for now */
-	fmt.Println("Parsed SELECT query:")
-	fmt.Println("  Columns:", columns)
-	fmt.Println("  Table:", table)
 }
