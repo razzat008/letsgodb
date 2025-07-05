@@ -12,25 +12,37 @@ import (
 	tok "github.com/razzat008/letsgodb/internal/Tokenizer"
 )
 
-//Parser Struct
+// Parser Struct
 type Parser struct {
-	Tokens 				[]tok.Token
-	position 		  int	
-	currentToken 	tok.Token
-	peekToken 		tok.Token
+	Tokens       []tok.Token // array of tokens from the tokenizer
+	position     int         // current position in the token stream
+	currentToken tok.Token   // currently processed token
+	peekToken    tok.Token   // lookahead token (next token)
 }
 
 /* Initializing Parser  */
-func (p* Parser) initParser(Tokens []tok.Token){
-	p.Tokens 			 = Tokens 								//Stored tokens
-	p.position     = 0          						//Tracks the current position in parsing 
-	p.currentToken = Tokens[p.position]  		//Initially current token's index = 0 
-	p.peekToken 	 = Tokens[p.position + 1] //Next token after current token = 1
+func (p *Parser) initParser(Tokens []tok.Token) {
+	p.Tokens = Tokens // Store the full slice of tokens
+	p.position = 0    // Start parsing from the beginning
+
+	// Assign the current and peek token safely
+	if len(Tokens) > 0 {
+		p.currentToken = Tokens[0] // First token
+	}
+	if len(Tokens) > 1 {
+		p.peekToken = Tokens[1] // Second token (lookahead)
+	} else {
+		p.peekToken = tok.Token{Type: tok.TokenEOF} // If no second token, mark as EOF
+	}
 }
 
-
 /* Entry point of the parser */
-func ParseProgram (Tokens []tok.Token){
+func ParseProgram(Tokens []tok.Token) {
+	if len(Tokens) == 0 {
+		fmt.Println("Empty input: no tokens to parse")
+		return
+	}
+
 	p := &Parser{}
 	p.initParser(Tokens)
 
@@ -39,86 +51,107 @@ func ParseProgram (Tokens []tok.Token){
 	case tok.TokenSelect:
 		p.parseSelect()
 	/* Todo: Insert, Update, Delete.....*/
-	default: 
-		fmt.Println("Unknown Operation detected")
+	default:
+		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
 	}
 }
 
-func (p* Parser) nextToken (){
-	p.position ++
-	// If no more tokens is left it will make current token as TokenEOF
-	if p.position  < len(p.Tokens){
+/* Advance to the next token */
+func (p *Parser) nextToken() {
+	p.position++
+
+	// Safely assign currentToken
+	if p.position < len(p.Tokens) {
 		p.currentToken = p.Tokens[p.position]
 	} else {
-		p.currentToken.Type = tok.TokenEOF
+		p.currentToken = tok.Token{Type: tok.TokenEOF} // No more tokens left
 	}
 
-	if p.position+1 < len(p.Tokens){
-		p.peekToken = p.Tokens[p.position + 1]
+	// Safely assign peekToken
+	if p.position+1 < len(p.Tokens) {
+		p.peekToken = p.Tokens[p.position+1]
+	} else {
+		p.peekToken = tok.Token{Type: tok.TokenEOF}
 	}
 }
 
-
 /*
-	-----Currently Parses like this--------------------
- 	SELECT COLUMN FROM TABLE {optional:WHERE Condition} ; EOF
+		-----Currently Parses like this--------------------
+	 	SELECT COLUMN FROM TABLE {optional:WHERE Condition} ; EOF
 */
-func (p* Parser) parseSelect(){
-	/* If token after select is not an identifier or an asterisk */
-		if (p.peekToken.Type != tok.TokenIdentifier) && 
-			 (p.peekToken.Type != tok.TokenAsterisk){
-		fmt.Println("Column name or All column expected")
-		return 
+func (p *Parser) parseSelect() {
+	/* If token after SELECT is not an identifier or an asterisk */
+	if p.peekToken.Type != tok.TokenIdentifier && p.peekToken.Type != tok.TokenAsterisk {
+		fmt.Printf("Syntax error: expected column name or '*' after SELECT, got %v\n", p.peekToken.Type)
+		return
 	}
 
-	/* getting next token after select*/
+	/* Move to the token after SELECT */
 	p.nextToken()
 
-	/* collecting the column names or asterisk */
+	/* Collecting column names or '*' */
 	columns := []string{}
 
-	/* loops through all identifiers */
+	/* Loop through all valid column tokens (identifiers or asterisk) */
 	for {
-		/* If current token is not an identifier or asterisk (could be FROM) exit loop */
-		if (p.currentToken.Type != tok.TokenIdentifier) && 
-			 (p.currentToken.Type != tok.TokenAsterisk){
-			break;
+		/* If current token is not valid as a column name, break the loop */
+		if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenAsterisk {
+			break
 		}
+
 		columns = append(columns, p.currentToken.CurrentToken)
 		p.nextToken()
-		/* TODO: later we will implement for comma */
+
+		// TODO: Handle comma-separated columns like SELECT name, age FROM ...
 	}
 
+	/* Expecting FROM keyword after columns */
 	if p.currentToken.Type != tok.TokenFrom {
-  	fmt.Println("Expected From clause")
+		fmt.Printf("Syntax error: expected FROM clause, got %v\n", p.currentToken.Type)
 		return
 	}
 
 	p.nextToken()
+
+	/* Expecting a valid table name (identifier) after FROM */
 	if p.currentToken.Type != tok.TokenIdentifier {
-		fmt.Println("Expected Table name")
-		return 
+		fmt.Printf("Syntax error: expected table name after FROM, got %v\n", p.currentToken.Type)
+		return
 	}
-	/* stores the table name to perform operation on the table*/
+
+	/* Store the table name for later use */
 	table := p.currentToken.CurrentToken
 
 	p.nextToken()
-	if  p.currentToken.Type == tok.TokenWhere {
-		/* TODO: Complete the Where part */	
-		/* What levels of complexity are We adding on it */
+
+	/* Optional: Handle WHERE clause */
+	if p.currentToken.Type == tok.TokenWhere {
+		/* TODO: Parse WHERE conditions here */
+		fmt.Println("WHERE clause found — not yet implemented")
+		p.nextToken()
 	}
+
+	/* Expecting semicolon to end the query */
 	if p.currentToken.Type != tok.TokenSemiColon {
-		fmt.Println("Expected Semicolon")
+		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
 		return
 	}
-	p.nextToken()	
+
+	p.nextToken()
+
+	/* Ensure no extra tokens after semicolon */
 	if p.currentToken.Type != tok.TokenEOF {
-		fmt.Println("Additional token recieved after Semicolon")	
+		fmt.Printf("Syntax warning: unexpected token after semicolon: %v\n", p.currentToken.Type)
 	}
-	
-	/* 
-	Note:
-	- For Now we are ignoring the multiline input parsing like in sql 
-		if semicolon is not recieved 
+
+	/*
+		Note:
+		- For now, we are ignoring multiline SQL input
+		- Semicolon is required to indicate end of statement
 	*/
+
+	/* Debug output for now */
+	fmt.Println("Parsed SELECT query:")
+	fmt.Println("  Columns:", columns)
+	fmt.Println("  Table:", table)
 }

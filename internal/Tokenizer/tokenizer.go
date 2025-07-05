@@ -30,21 +30,51 @@ const (
 	TokenValue      TokenType = "VALUE"
 	TokenUnknown    TokenType = "UNKNOWN"
 	TokenSemiColon  TokenType = "SEMICOLON"
-	TokenEOF        TokenType = "EOF" 
-	TokenComma 			TokenType = "COMMA"
-	TokenAsterisk 	TokenType = "ASTERISK"
+	TokenEOF        TokenType = "EOF"
+	TokenComma      TokenType = "COMMA"
+	TokenAsterisk   TokenType = "ASTERISK"
 )
+
+// break input string into clean token parts
+func tokenizeInput(input string) []string {
+	var tokens []string
+	var current strings.Builder
+
+	for _, ch := range input {
+		switch ch {
+		case ' ', '\t', '\n':
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+		case ';', ',', '*', '=', '<', '>', '(', ')':
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			tokens = append(tokens, string(ch))
+		default:
+			current.WriteRune(ch)
+		}
+	}
+
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
+}
 
 // tokenizes the user input []byte into string
 // and returns the string
 func Tokenizer(lb *repl.LineBuffer) []Token {
-	rawTokens := strings.Fields(string(lb.Buffer))
+	rawTokens := tokenizeInput(string(lb.Buffer))
 	var tokens []Token
 
 	for _, currentToken := range rawTokens {
 		upperToken := strings.ToUpper(currentToken)
 		switch upperToken {
-		case "SELECT": 
+		case "SELECT":
 			tokens = append(tokens, Token{Type: TokenSelect, CurrentToken: upperToken})
 		case "FROM":
 			tokens = append(tokens, Token{Type: TokenFrom, CurrentToken: upperToken})
@@ -52,11 +82,11 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenWhere, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
 			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
-		case ";": 
+		case ";":
 			tokens = append(tokens, Token{Type: TokenSemiColon, CurrentToken: upperToken})
-		case ",": 
+		case ",":
 			tokens = append(tokens, Token{Type: TokenComma, CurrentToken: upperToken})
-		case "*": 
+		case "*":
 			tokens = append(tokens, Token{Type: TokenAsterisk, CurrentToken: upperToken})
 		default:
 			if strings.HasPrefix(currentToken, "'") && strings.HasSuffix(currentToken, "'") {
@@ -72,11 +102,11 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 }
 
 /*
-A Token may have two characteristics 
+A Token may have two characteristics
 - it's name(value) and it's type
 a struct Token is created
 and some possible token types is then declared
 =====
 the contents of the buffer is now looped through looking for matching tokens
-to assign their types individually 
+to assign their types individually
 */

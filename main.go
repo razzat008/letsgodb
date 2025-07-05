@@ -14,6 +14,6 @@ func main() {
 		lineBuffer.UserInput() // repl.InitLineBuffer.UserInput
 		// since tok.tokenizer returns slice of token struct 
 		par.ParseProgram(tok.Tokenizer(lineBuffer))	
-		lineBuffer.Reset()
+		lineBuffer.Reset() // after one instance of the buffer has been sent the buffer is cleared
 	}
 }
