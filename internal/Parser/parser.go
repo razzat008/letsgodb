@@ -286,12 +286,6 @@ func (p *Parser) parseInsert() *InsertStatement {
 }
 
 func (p *Parser) parseColumns() []string {
-	if p.currentToken.Type != tok.TokenLeftParen {
-		fmt.Printf("Syntax error: expected '(' after VALUES, got %v\n", p.currentToken.Type)
-		return nil
-	}
-	p.nextToken()
-
 	columns := []string{}
 	for p.currentToken.Type == tok.TokenIdentifier {
 		columns = append(columns, p.currentToken.CurrentToken)
