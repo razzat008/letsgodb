@@ -30,8 +30,8 @@ func (s *SelectStatement) StatementNode() {}
 
 type InsertStatement struct {
 	Table   string
+	Values  [][]string
 	Columns []string
-	Values  []string
 }
 
 func (i *InsertStatement) StatementNode() {}
@@ -83,11 +83,11 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed SELECT statement:", string(b))
 		return stmt
-	// case tok.TokenInsert:
-	// 	stmt := p.parseInsert()
-	// 	b, _ := json.MarshalIndent(stmt, "", "  ")
-	// 	fmt.Println("Parsed INSERT statement:", string(b))
-	// 	return stmt
+	case tok.TokenInsert:
+		stmt := p.parseInsert()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed INSERT statement:", string(b))
+		return stmt
 	// Todo: Update, Delete, etc.
 	default:
 		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
@@ -107,8 +107,8 @@ func (p *Parser) nextToken() {
 	}
 
 	// Safely assign peekToken
-	if p.position+1 < len(p.Tokens) {
-		p.peekToken = p.Tokens[p.position+1]
+	if p.position+1 < len(p.Tokens) { // to advance to the next token
+		p.peekToken = p.Tokens[p.position+1] // to assign the next token
 	} else {
 		p.peekToken = tok.Token{Type: tok.TokenEOF}
 	}
@@ -217,4 +217,120 @@ func (p *Parser) parseSelect() *SelectStatement {
 		Table:   table,
 		Where:   where,
 	}
+}
+
+func (p *Parser) parseInsert() *InsertStatement {
+	if p.peekToken.Type != tok.TokenInto {
+		fmt.Printf("Syntax error: expected INTO , got %v\n", p.peekToken.Type)
+		return nil
+	}
+	p.nextToken()
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Printf("Syntax error: expected table name after INTO, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	table := p.currentToken.CurrentToken
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenLeftParen {
+		fmt.Printf("Syntax error: expected '(' after table name, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	columns := p.parseColumns()
+	if columns == nil {
+		return nil
+	}
+
+	if p.currentToken.Type != tok.TokenRightParen {
+		fmt.Printf("Syntax error: expected ')' after column list, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenValues {
+		fmt.Printf("Syntax error: expected 'VALUES' after column list, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenLeftParen {
+		fmt.Printf("Syntax error: expected '(' after VALUES, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	values := p.parseValues()
+	if values == nil {
+		return nil
+	}
+
+	if p.currentToken.Type != tok.TokenRightParen {
+		fmt.Printf("Syntax error: expected ')' after value list, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenSemiColon {
+		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
+		return nil
+	}
+	return &InsertStatement{
+		Table:   table,
+		Values:  values,
+		Columns: columns,
+	}
+}
+
+func (p *Parser) parseColumns() []string {
+	if p.currentToken.Type != tok.TokenLeftParen {
+		fmt.Printf("Syntax error: expected '(' after VALUES, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	columns := []string{}
+	for p.currentToken.Type == tok.TokenIdentifier {
+		columns = append(columns, p.currentToken.CurrentToken)
+		p.nextToken()
+		if p.currentToken.Type == tok.TokenComma {
+			p.nextToken()
+		}
+	}
+
+	if p.currentToken.Type != tok.TokenRightParen {
+		fmt.Printf("Syntax error: expected ')' after column list, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	return columns
+}
+
+func (p *Parser) parseValues() [][]string {
+	if p.currentToken.Type != tok.TokenLeftParen {
+		fmt.Printf("Syntax error: expected '(' after VALUES, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	values := [][]string{}
+	for p.currentToken.Type == tok.TokenStringLiteral {
+		values = append(values, []string{p.currentToken.CurrentToken})
+		p.nextToken()
+		if p.currentToken.Type == tok.TokenComma {
+			p.nextToken()
+		}
+	}
+
+	if p.currentToken.Type != tok.TokenRightParen {
+		fmt.Printf("Syntax error: expected ')' after value list, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	return values
 }
