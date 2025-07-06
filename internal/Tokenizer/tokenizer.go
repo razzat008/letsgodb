@@ -23,17 +23,24 @@ type Token struct {
 
 // specifying what possible token	can be
 const (
-	TokenSelect     TokenType = "SELECT"
-	TokenFrom       TokenType = "FROM"
-	TokenWhere      TokenType = "WHERE"
-	TokenIdentifier TokenType = "IDENTIFIER"
-	TokenOperator   TokenType = "OPERATOR"
-	TokenValue      TokenType = "VALUE"
-	TokenUnknown    TokenType = "UNKNOWN"
-	TokenSemiColon  TokenType = "SEMICOLON"
-	TokenEOF        TokenType = "EOF"
-	TokenComma      TokenType = "COMMA"
-	TokenAsterisk   TokenType = "ASTERISK"
+	TokenSelect        TokenType = "SELECT"
+	TokenInsert        TokenType = "INSERT"
+	TokenDelete        TokenType = "DELETE"
+	TokenFrom          TokenType = "FROM"
+	TokenWhere         TokenType = "WHERE"
+	TokenIdentifier    TokenType = "IDENTIFIER"
+	TokenOperator      TokenType = "OPERATOR"
+	TokenValue         TokenType = "VALUE"
+	TokenInto          TokenType = "INTO"
+	TokenValues        TokenType = "VALUES"
+	TokenUnknown       TokenType = "UNKNOWN"
+	TokenSemiColon     TokenType = "SEMICOLON"
+	TokenEOF           TokenType = "EOF"
+	TokenComma         TokenType = "COMMA"
+	TokenAsterisk      TokenType = "ASTERISK"
+	TokenLeftParen     TokenType = "LEFT_PAREN"
+	TokenRightParen    TokenType = "RIGHT_PAREN"
+	TokenStringLiteral TokenType = "STRING_LITERAL"
 )
 
 // break input string into clean token parts
@@ -104,6 +111,14 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenFrom, CurrentToken: upperToken})
 		case "WHERE":
 			tokens = append(tokens, Token{Type: TokenWhere, CurrentToken: upperToken})
+		case "INSERT":
+			tokens = append(tokens, Token{Type: TokenInsert, CurrentToken: upperToken})
+		case "INTO":
+			tokens = append(tokens, Token{Type: TokenInto, CurrentToken: upperToken})
+		case "DELETE":
+			tokens = append(tokens, Token{Type: TokenDelete, CurrentToken: upperToken})
+		case "VALUES":
+			tokens = append(tokens, Token{Type: TokenValues, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
 			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
 		case ";":
