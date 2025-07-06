@@ -2,7 +2,7 @@
 A database built from scratch in Go.
 
 # Running the project
-Install go  
+Install go
 ```bash
 sudo pacman -S go
 ```
@@ -46,4 +46,9 @@ letsgodb/
 ├── go.mod
 ├── go.sum
 └── README.md
-``` 
+```
+
+## Help
+- All commands end with `;`, semicolon
+- The `help` command displays this message.
+- The `\e` command exits the program.

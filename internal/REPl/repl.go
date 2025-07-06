@@ -9,6 +9,7 @@ package REPL
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 )
@@ -44,10 +45,11 @@ func (lb *LineBuffer) UserInput() {
 
 	// Tells the user to take input in the buffer
 	// until the occurence of first newline
-	input, _ := reader.ReadBytes('\n')
-
-	// it removes the newline character
-	input = input[:len(input)-1]
+	input, _ := reader.ReadBytes(';')
+	if len(input) > 0 && input[len(input)-1] == ';' { // checking if the input is not empty and ends with a semicolon
+		input = input[:len(input)-1] //assigning the input to the buffer
+	}
+	input = bytes.TrimRight(input, "\n")
 	lb.Write(input)
 }
 
