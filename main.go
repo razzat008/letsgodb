@@ -9,9 +9,10 @@ import (
 // to print help message
 func printHelp() {
 	println("letsgodb Help:")
+	println("Every command MUST end with a semicolon(;).")
 	println("  Type SQL commands to interact with the database.")
-	println("  Type 'help' to see this message.")
-	println("  Type '\\e' to exit.")
+	println("  Type 'help;' to see this message.")
+	println("  Type '\\e;' to exit.")
 	println("  To learn more about letsgodb, visit https://github.com/razzat008/letsgodb")
 }
 
@@ -19,6 +20,7 @@ func printHelp() {
 func main() {
 	// stored the initialized buffer value in line buffer
 	lineBuffer := repl.InitLineBuffer()
+	printHelp()
 	for {
 		repl.PrintDB()
 		lineBuffer.UserInput() // repl.InitLineBuffer.UserInput
