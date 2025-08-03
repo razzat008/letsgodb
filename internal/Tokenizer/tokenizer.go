@@ -41,6 +41,8 @@ const (
 	TokenLeftParen     TokenType = "LEFT_PAREN"
 	TokenRightParen    TokenType = "RIGHT_PAREN"
 	TokenStringLiteral TokenType = "STRING_LITERAL"
+	TokenAnd					 TokenType = "AND"
+	TokenOr						 TokenType = "OR"
 )
 
 // break input string into clean token parts
@@ -113,6 +115,10 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenWhere, CurrentToken: upperToken})
 		case "INSERT":
 			tokens = append(tokens, Token{Type: TokenInsert, CurrentToken: upperToken})
+		case "AND":
+			tokens = append(tokens, Token{Type: TokenAnd, CurrentToken: upperToken})
+		case "OR":
+			tokens = append(tokens, Token{Type: TokenOr, CurrentToken: upperToken})
 		case "INTO":
 			tokens = append(tokens, Token{Type: TokenInto, CurrentToken: upperToken})
 		case "DELETE":
