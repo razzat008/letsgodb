@@ -52,3 +52,6 @@ letsgodb/
 - All commands end with `;`, semicolon
 - The `help` command displays this message.
 - The `\e` command exits the program.
+
+## Wiki
+See [wiki](https://github.com/razzat008/letsgodb/wiki) for more.
