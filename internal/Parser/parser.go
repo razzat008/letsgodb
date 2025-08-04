@@ -304,12 +304,7 @@ func (p *Parser) parseInsert() *InsertStatement {
 		fmt.Printf("Syntax error: expected ')' after value list, got %v\n", p.currentToken.Type)
 		return nil
 	}
-	p.nextToken()
 
-	if p.currentToken.Type != tok.TokenSemiColon {
-		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
-		return nil
-	}
 	return &InsertStatement{
 		Table:   table,
 		Values:  values,
