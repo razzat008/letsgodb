@@ -46,6 +46,13 @@ type CreateTableStatement struct {
 	Columns   []string
 }
 
+type DropStatement struct {
+	Database string
+	Table string
+	Columns []string
+}
+func (d *DropStatement) StatementNode() {}
+
 func (c *CreateTableStatement) StatementNode() {}
 
 
@@ -214,6 +221,12 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed CREATE TABLE statement:", string(b))
 		return stmt
+	case tok.TokenDrop:
+		stmt := p.parseDrop()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed Drop TABLE statement:", string(b))
+		return stmt
+	
 	// Todo: Update, Delete, etc.
 	default:
 		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
@@ -408,4 +421,70 @@ func (p *Parser) parseValues() [][]string {
 	p.nextToken()
 
 	return values
+}
+
+
+func (p *Parser) parseDrop() *DropStatement{
+	/* 
+		Examples: 
+		- Drop table table_name 
+		- Drop table table_name ( columns ) --> drop columns of table_name
+		- Drop table table_name1 table_name2 --> drop multiple tables
+	*/
+	var database string 
+	var columns []string
+	var table string
+	p.nextToken() // database or table token
+	switch p.currentToken.Type {
+	case tok.TokenTable:
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenIdentifier {
+			fmt.Printf("Syntax error: expected IDENTIFIER, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		table = p.currentToken.CurrentToken
+
+	if p.peekToken.Type == tok.TokenSemiColon{
+			break
+		} 
+			if p.peekToken.Type != tok.TokenLeftParen{
+			fmt.Printf("Syntax error: expected ( , got %v\n", p.peekToken.Type)
+			return nil
+		} 
+		p.nextToken() // at parenthesis 
+		p.nextToken() // at identifier 
+
+		//loops through identifier
+		for p.currentToken.Type == tok.TokenIdentifier {
+			columns = append(columns, p.currentToken.CurrentToken)
+			p.nextToken()
+			if p.currentToken.Type == tok.TokenComma {
+				p.nextToken()
+			}
+		}
+		if p.currentToken.Type != tok.TokenRightParen {
+			fmt.Printf("Syntax error: expected ) , got %v\n", p.peekToken.Type)
+			return nil
+		}
+		 
+
+	case tok.TokenDatabase:
+		p.nextToken()
+		if p.currentToken.Type!= tok.TokenIdentifier{
+			fmt.Printf("Syntax error: expected IDENTIFIER, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		database = p.currentToken.CurrentToken
+		if p.peekToken.Type != tok.TokenSemiColon{
+			fmt.Printf("Syntax error: expected Semicolon, got %v\n", p.peekToken.Type)
+			return nil
+		}
+	default:
+		fmt.Printf("Syntax error: expected Table or Database, got %v\n",p.currentToken.Type)
+	}
+	return &DropStatement{
+		Database: database,
+		Table: table,
+		Columns : columns,
+	}
 }
