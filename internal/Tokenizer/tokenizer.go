@@ -133,6 +133,10 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenComma, CurrentToken: upperToken})
 		case "*":
 			tokens = append(tokens, Token{Type: TokenAsterisk, CurrentToken: upperToken})
+		case "(":
+			tokens = append(tokens, Token{Type: TokenLeftParen, CurrentToken: upperToken})
+		case ")":
+			tokens = append(tokens, Token{Type: TokenRightParen, CurrentToken: upperToken})
 		default:
 			if strings.HasPrefix(currentToken, "'") && strings.HasSuffix(currentToken, "'") {
 				// checking for values like 'School' ; i.e. quoted values
