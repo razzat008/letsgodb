@@ -45,6 +45,8 @@ const (
 	TokenStringLiteral TokenType = "STRING_LITERAL"
 	TokenAnd					 TokenType = "AND"
 	TokenOr						 TokenType = "OR"
+	TokenDatabase      TokenType = "DATABASE"
+	TokenDrop					 TokenType = "DROP"
 )
 
 // break input string into clean token parts
@@ -131,6 +133,10 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenCreate, CurrentToken: upperToken})
 		case "TABLE":
 			tokens = append(tokens, Token{Type: TokenTable, CurrentToken: upperToken})
+		case "DATABASE":
+			tokens = append(tokens, Token{Type: TokenDatabase, CurrentToken: upperToken})
+		case "DROP":
+			tokens = append(tokens, Token{Type: TokenDrop, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
 			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
 		case ";":
@@ -139,6 +145,10 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenComma, CurrentToken: upperToken})
 		case "*":
 			tokens = append(tokens, Token{Type: TokenAsterisk, CurrentToken: upperToken})
+		case "(": 
+			tokens = append(tokens, Token{Type: TokenLeftParen, CurrentToken: upperToken})
+		case ")":
+			tokens = append(tokens, Token{Type: TokenRightParen, CurrentToken: upperToken})
 		default:
 			if strings.HasPrefix(currentToken, "'") && strings.HasSuffix(currentToken, "'") {
 				// checking for values like 'School' ; i.e. quoted values

@@ -47,7 +47,7 @@ func (lb *LineBuffer) UserInput() {
 	// until the occurence of first newline
 	input, _ := reader.ReadBytes(';')
 	if len(input) > 0 && input[len(input)-1] == ';' { // checking if the input is not empty and ends with a semicolon
-		input = input[:len(input) - 1]  // removing semicolon
+		input = input[:len(input)] 
 	}
 	input = bytes.TrimRight(input, "\n")
 	lb.Write(input)
