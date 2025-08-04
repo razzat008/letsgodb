@@ -19,11 +19,15 @@ type Statement interface {
 	StatementNode()
 }
 
+type Expr interface {
+	exprNode()
+}
+
 // AST structs for parsed SQL statements
 type SelectStatement struct {
 	Columns []string
 	Table   string
-	Where   *WhereClause // nil if no WHERE clause
+	Where   Expr
 }
 
 func (s *SelectStatement) StatementNode() {}
@@ -42,7 +46,114 @@ type CreateTableStatement struct {
 	Columns   []string
 }
 
+type DropStatement struct {
+	Database string
+	Table string
+	Columns []string
+}
+func (d *DropStatement) StatementNode() {}
+
 func (c *CreateTableStatement) StatementNode() {}
+
+
+type Condition struct {
+	Column   string
+	Operator string
+	Value    string
+}
+func (c *Condition) exprNode() {}
+
+type BinaryExpr struct {
+	Left     Expr
+	Operator string // "AND" or "OR" for now
+	Right    Expr
+}
+func (b *BinaryExpr) exprNode() {}
+
+// Parser Struct
+type Parser struct {
+	Tokens       []tok.Token // array of tokens from the tokenizer
+	position     int         // current position in the token stream
+	currentToken tok.Token   // currently processed token
+	peekToken    tok.Token   // lookahead token (next token)
+}
+
+/* Initializing Parser  */
+func (p *Parser) initParser(Tokens []tok.Token) {
+	p.Tokens = Tokens // Store the full slice of tokens
+	p.position = 0    // Start parsing from the beginning
+
+	// Assign the current and peek token safely
+	if len(Tokens) > 0 {
+		p.currentToken = Tokens[0] // First token
+	}
+	if len(Tokens) > 1 {
+		p.peekToken = Tokens[1] // Second token (lookahead)
+	} else {
+		p.peekToken = tok.Token{Type: tok.TokenEOF} // If no second token, mark as EOF
+	}
+}
+/* Parsing the where clause for Select statement */ 
+func (p *Parser) parseExpr() Expr {
+	left := p.parsePrimaryExpr()
+	if left == nil {
+		return nil
+	}
+
+	for p.currentToken.Type == tok.TokenAnd || p.currentToken.Type == tok.TokenOr {
+		op := p.currentToken.CurrentToken
+		p.nextToken()
+		right := p.parseExpr()
+		if right == nil {
+			return nil
+		}
+		left = &BinaryExpr{
+			Left:     left,
+			Operator: op,
+			Right:    right,
+		}
+	}
+	return left
+}
+
+func (p *Parser) parsePrimaryExpr() Expr {
+	if p.currentToken.Type == tok.TokenLeftParen {
+		p.nextToken()
+		expr := p.parseExpr()
+		if p.currentToken.Type != tok.TokenRightParen {
+			fmt.Println("Syntax error: expected ')' after expression")
+			return nil
+		}
+		p.nextToken()
+		return expr
+	}
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Println("Syntax error: expected column name")
+		return nil
+	}
+	column := p.currentToken.CurrentToken
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenOperator {
+		fmt.Println("Syntax error: expected operator")
+		return nil
+	}
+	operator := p.currentToken.CurrentToken
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenValue {
+		fmt.Println("Syntax error: expected value")
+		return nil
+	}
+	value := p.currentToken.CurrentToken
+	p.nextToken()
+
+	return &Condition{
+		Column:   column,
+		Operator: operator,
+		Value:    value,
+	}
+}
 
 // Parse CREATE TABLE statement
 func (p *Parser) parseCreateTable() *CreateTableStatement {
@@ -84,38 +195,7 @@ func (p *Parser) parseCreateTable() *CreateTableStatement {
 	return &CreateTableStatement{TableName: tableName, Columns: columns}
 }
 
-type WhereClause struct {
-	Column   string
-	Operator string
-	Value    string
-}
-
-// Parser Struct
-type Parser struct {
-	Tokens       []tok.Token // array of tokens from the tokenizer
-	position     int         // current position in the token stream
-	currentToken tok.Token   // currently processed token
-	peekToken    tok.Token   // lookahead token (next token)
-}
-
-/* Initializing Parser  */
-func (p *Parser) initParser(Tokens []tok.Token) {
-	p.Tokens = Tokens // Store the full slice of tokens
-	p.position = 0    // Start parsing from the beginning
-
-	// Assign the current and peek token safely
-	if len(Tokens) > 0 {
-		p.currentToken = Tokens[0] // First token
-	}
-	if len(Tokens) > 1 {
-		p.peekToken = Tokens[1] // Second token (lookahead)
-	} else {
-		p.peekToken = tok.Token{Type: tok.TokenEOF} // If no second token, mark as EOF
-	}
-}
-
 /* Entry point of the parser */
-
 func ParseProgram(Tokens []tok.Token) Statement {
 	if len(Tokens) == 0 {
 		fmt.Println("Empty input: no tokens to parse")
@@ -141,6 +221,12 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed CREATE TABLE statement:", string(b))
 		return stmt
+	case tok.TokenDrop:
+		stmt := p.parseDrop()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed Drop TABLE statement:", string(b))
+		return stmt
+	
 	// Todo: Update, Delete, etc.
 	default:
 		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
@@ -216,52 +302,12 @@ func (p *Parser) parseSelect() *SelectStatement {
 
 	p.nextToken()
 
-	// Optional: Handle WHERE clause
-	var where *WhereClause
+	var where Expr
 	if p.currentToken.Type == tok.TokenWhere {
 		p.nextToken()
-		// Expect: IDENTIFIER OPERATOR VALUE
-		if p.currentToken.Type != tok.TokenIdentifier {
-			fmt.Printf("Syntax error: expected column name in WHERE, got %v\n", p.currentToken.Type)
+		where = p.parseExpr()
+		if where == nil {
 			return nil
-		}
-		whereColumn := p.currentToken.CurrentToken
-		p.nextToken()
-		if p.currentToken.Type != tok.TokenOperator {
-			fmt.Printf("Syntax error: expected operator in WHERE, got %v\n", p.currentToken.Type)
-			return nil
-		}
-		whereOperator := p.currentToken.CurrentToken
-		p.nextToken()
-		if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenValue {
-			fmt.Printf("Syntax error: expected value in WHERE, got %v\n", p.currentToken.Type)
-			return nil
-		}
-		whereValue := p.currentToken.CurrentToken
-		p.nextToken()
-		where = &WhereClause{
-			Column:   whereColumn,
-			Operator: whereOperator,
-			Value:    whereValue,
-		}
-
-		// Expecting semicolon to end the query
-		if p.currentToken.Type != tok.TokenSemiColon {
-			fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
-			return nil
-		}
-
-		p.nextToken()
-
-		// Ensure no extra tokens after semicolon
-		if p.currentToken.Type != tok.TokenEOF {
-			fmt.Printf("Syntax warning: unexpected token after semicolon: %v\n", p.currentToken.Type)
-		}
-
-		return &SelectStatement{
-			Columns: columns,
-			Table:   table,
-			Where:   where,
 		}
 	}
 
@@ -325,12 +371,7 @@ func (p *Parser) parseInsert() *InsertStatement {
 		fmt.Printf("Syntax error: expected ')' after value list, got %v\n", p.currentToken.Type)
 		return nil
 	}
-	p.nextToken()
 
-	if p.currentToken.Type != tok.TokenSemiColon {
-		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
-		return nil
-	}
 	return &InsertStatement{
 		Table:   table,
 		Values:  values,
@@ -380,4 +421,70 @@ func (p *Parser) parseValues() [][]string {
 	p.nextToken()
 
 	return values
+}
+
+
+func (p *Parser) parseDrop() *DropStatement{
+	/* 
+		Examples: 
+		- Drop table table_name 
+		- Drop table table_name ( columns ) --> drop columns of table_name
+		- Drop table table_name1 table_name2 --> drop multiple tables
+	*/
+	var database string 
+	var columns []string
+	var table string
+	p.nextToken() // database or table token
+	switch p.currentToken.Type {
+	case tok.TokenTable:
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenIdentifier {
+			fmt.Printf("Syntax error: expected IDENTIFIER, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		table = p.currentToken.CurrentToken
+
+	if p.peekToken.Type == tok.TokenSemiColon{
+			break
+		} 
+			if p.peekToken.Type != tok.TokenLeftParen{
+			fmt.Printf("Syntax error: expected ( , got %v\n", p.peekToken.Type)
+			return nil
+		} 
+		p.nextToken() // at parenthesis 
+		p.nextToken() // at identifier 
+
+		//loops through identifier
+		for p.currentToken.Type == tok.TokenIdentifier {
+			columns = append(columns, p.currentToken.CurrentToken)
+			p.nextToken()
+			if p.currentToken.Type == tok.TokenComma {
+				p.nextToken()
+			}
+		}
+		if p.currentToken.Type != tok.TokenRightParen {
+			fmt.Printf("Syntax error: expected ) , got %v\n", p.peekToken.Type)
+			return nil
+		}
+		 
+
+	case tok.TokenDatabase:
+		p.nextToken()
+		if p.currentToken.Type!= tok.TokenIdentifier{
+			fmt.Printf("Syntax error: expected IDENTIFIER, got %v\n", p.currentToken.Type)
+			return nil
+		}
+		database = p.currentToken.CurrentToken
+		if p.peekToken.Type != tok.TokenSemiColon{
+			fmt.Printf("Syntax error: expected Semicolon, got %v\n", p.peekToken.Type)
+			return nil
+		}
+	default:
+		fmt.Printf("Syntax error: expected Table or Database, got %v\n",p.currentToken.Type)
+	}
+	return &DropStatement{
+		Database: database,
+		Table: table,
+		Columns : columns,
+	}
 }
