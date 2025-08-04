@@ -49,7 +49,7 @@ func (p *Parser) parseCreateTable() *CreateTableStatement {
 	// Expect: CREATE TABLE table_name (col1, col2, ...)
 	p.nextToken() // move to TABLE
 	if p.currentToken.Type != tok.TokenTable {
-		fmt.Printf("Syntax error: expected TABLE after CREATE, got %v\n", p.currentToken.Type)
+		fmt.Printf("Syntax error: expected TABLE after CREATE, got %v (did you forget the TABLE keyword?)\n", p.currentToken.Type)
 		return nil
 	}
 	p.nextToken() // move to table name
@@ -60,7 +60,7 @@ func (p *Parser) parseCreateTable() *CreateTableStatement {
 	tableName := p.currentToken.CurrentToken
 	p.nextToken()
 	if p.currentToken.Type != tok.TokenLeftParen {
-		fmt.Printf("Syntax error: expected '(', got %v\n", p.currentToken.Type)
+		fmt.Printf("Syntax error: expected '(' after table name, got %v\n", p.currentToken.Type)
 		return nil
 	}
 	p.nextToken()
@@ -73,12 +73,12 @@ func (p *Parser) parseCreateTable() *CreateTableStatement {
 		}
 	}
 	if p.currentToken.Type != tok.TokenRightParen {
-		fmt.Printf("Syntax error: expected ')', got %v\n", p.currentToken.Type)
+		fmt.Printf("Syntax error: expected ')' after column list, got %v\n", p.currentToken.Type)
 		return nil
 	}
 	p.nextToken()
 	if p.currentToken.Type != tok.TokenSemiColon {
-		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
+		fmt.Printf("Syntax error: expected ';' at end of statement, got %v\n", p.currentToken.Type)
 		return nil
 	}
 	return &CreateTableStatement{TableName: tableName, Columns: columns}
