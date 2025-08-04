@@ -36,6 +36,54 @@ type InsertStatement struct {
 
 func (i *InsertStatement) StatementNode() {}
 
+// AST struct for CREATE TABLE
+type CreateTableStatement struct {
+	TableName string
+	Columns   []string
+}
+
+func (c *CreateTableStatement) StatementNode() {}
+
+// Parse CREATE TABLE statement
+func (p *Parser) parseCreateTable() *CreateTableStatement {
+	// Expect: CREATE TABLE table_name (col1, col2, ...)
+	p.nextToken() // move to TABLE
+	if p.currentToken.Type != tok.TokenTable {
+		fmt.Printf("Syntax error: expected TABLE after CREATE, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken() // move to table name
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Printf("Syntax error: expected table name, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	tableName := p.currentToken.CurrentToken
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenLeftParen {
+		fmt.Printf("Syntax error: expected '(', got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+	columns := []string{}
+	for p.currentToken.Type == tok.TokenIdentifier {
+		columns = append(columns, p.currentToken.CurrentToken)
+		p.nextToken()
+		if p.currentToken.Type == tok.TokenComma {
+			p.nextToken()
+		}
+	}
+	if p.currentToken.Type != tok.TokenRightParen {
+		fmt.Printf("Syntax error: expected ')', got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenSemiColon {
+		fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
+		return nil
+	}
+	return &CreateTableStatement{TableName: tableName, Columns: columns}
+}
+
 type WhereClause struct {
 	Column   string
 	Operator string
@@ -87,6 +135,11 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		stmt := p.parseInsert()
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed INSERT statement:", string(b))
+		return stmt
+	case tok.TokenCreate:
+		stmt := p.parseCreateTable()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed CREATE TABLE statement:", string(b))
 		return stmt
 	// Todo: Update, Delete, etc.
 	default:

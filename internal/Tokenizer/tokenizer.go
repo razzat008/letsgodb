@@ -28,6 +28,8 @@ const (
 	TokenDelete        TokenType = "DELETE"
 	TokenFrom          TokenType = "FROM"
 	TokenWhere         TokenType = "WHERE"
+	TokenCreate        TokenType = "CREATE"
+	TokenTable         TokenType = "TABLE"
 	TokenIdentifier    TokenType = "IDENTIFIER"
 	TokenOperator      TokenType = "OPERATOR"
 	TokenValue         TokenType = "VALUE"
@@ -119,6 +121,10 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenDelete, CurrentToken: upperToken})
 		case "VALUES":
 			tokens = append(tokens, Token{Type: TokenValues, CurrentToken: upperToken})
+		case "CREATE":
+			tokens = append(tokens, Token{Type: TokenCreate, CurrentToken: upperToken})
+		case "TABLE":
+			tokens = append(tokens, Token{Type: TokenTable, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
 			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
 		case ";":
