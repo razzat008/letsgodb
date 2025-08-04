@@ -19,11 +19,15 @@ type Statement interface {
 	StatementNode()
 }
 
+type Expr interface {
+	exprNode()
+}
+
 // AST structs for parsed SQL statements
 type SelectStatement struct {
 	Columns []string
 	Table   string
-	Where   *WhereClause // nil if no WHERE clause
+	Where   Expr
 }
 
 func (s *SelectStatement) StatementNode() {}
@@ -36,11 +40,19 @@ type InsertStatement struct {
 
 func (i *InsertStatement) StatementNode() {}
 
-type WhereClause struct {
+type Condition struct {
 	Column   string
 	Operator string
 	Value    string
 }
+func (c *Condition) exprNode() {}
+
+type BinaryExpr struct {
+	Left     Expr
+	Operator string // "AND" or "OR" for now
+	Right    Expr
+}
+func (b *BinaryExpr) exprNode() {}
 
 // Parser Struct
 type Parser struct {
@@ -65,9 +77,69 @@ func (p *Parser) initParser(Tokens []tok.Token) {
 		p.peekToken = tok.Token{Type: tok.TokenEOF} // If no second token, mark as EOF
 	}
 }
+/* Parsing the where clause for Select statement */ 
+func (p *Parser) parseExpr() Expr {
+	left := p.parsePrimaryExpr()
+	if left == nil {
+		return nil
+	}
+
+	for p.currentToken.Type == tok.TokenAnd || p.currentToken.Type == tok.TokenOr {
+		op := p.currentToken.CurrentToken
+		p.nextToken()
+		right := p.parseExpr()
+		if right == nil {
+			return nil
+		}
+		left = &BinaryExpr{
+			Left:     left,
+			Operator: op,
+			Right:    right,
+		}
+	}
+	return left
+}
+
+func (p *Parser) parsePrimaryExpr() Expr {
+	if p.currentToken.Type == tok.TokenLeftParen {
+		p.nextToken()
+		expr := p.parseExpr()
+		if p.currentToken.Type != tok.TokenRightParen {
+			fmt.Println("Syntax error: expected ')' after expression")
+			return nil
+		}
+		p.nextToken()
+		return expr
+	}
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Println("Syntax error: expected column name")
+		return nil
+	}
+	column := p.currentToken.CurrentToken
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenOperator {
+		fmt.Println("Syntax error: expected operator")
+		return nil
+	}
+	operator := p.currentToken.CurrentToken
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenValue {
+		fmt.Println("Syntax error: expected value")
+		return nil
+	}
+	value := p.currentToken.CurrentToken
+	p.nextToken()
+
+	return &Condition{
+		Column:   column,
+		Operator: operator,
+		Value:    value,
+	}
+}
 
 /* Entry point of the parser */
-
 func ParseProgram(Tokens []tok.Token) Statement {
 	if len(Tokens) == 0 {
 		fmt.Println("Empty input: no tokens to parse")
@@ -163,52 +235,12 @@ func (p *Parser) parseSelect() *SelectStatement {
 
 	p.nextToken()
 
-	// Optional: Handle WHERE clause
-	var where *WhereClause
+	var where Expr
 	if p.currentToken.Type == tok.TokenWhere {
 		p.nextToken()
-		// Expect: IDENTIFIER OPERATOR VALUE
-		if p.currentToken.Type != tok.TokenIdentifier {
-			fmt.Printf("Syntax error: expected column name in WHERE, got %v\n", p.currentToken.Type)
+		where = p.parseExpr()
+		if where == nil {
 			return nil
-		}
-		whereColumn := p.currentToken.CurrentToken
-		p.nextToken()
-		if p.currentToken.Type != tok.TokenOperator {
-			fmt.Printf("Syntax error: expected operator in WHERE, got %v\n", p.currentToken.Type)
-			return nil
-		}
-		whereOperator := p.currentToken.CurrentToken
-		p.nextToken()
-		if p.currentToken.Type != tok.TokenIdentifier && p.currentToken.Type != tok.TokenValue {
-			fmt.Printf("Syntax error: expected value in WHERE, got %v\n", p.currentToken.Type)
-			return nil
-		}
-		whereValue := p.currentToken.CurrentToken
-		p.nextToken()
-		where = &WhereClause{
-			Column:   whereColumn,
-			Operator: whereOperator,
-			Value:    whereValue,
-		}
-
-		// Expecting semicolon to end the query
-		if p.currentToken.Type != tok.TokenSemiColon {
-			fmt.Printf("Syntax error: expected ';', got %v\n", p.currentToken.Type)
-			return nil
-		}
-
-		p.nextToken()
-
-		// Ensure no extra tokens after semicolon
-		if p.currentToken.Type != tok.TokenEOF {
-			fmt.Printf("Syntax warning: unexpected token after semicolon: %v\n", p.currentToken.Type)
-		}
-
-		return &SelectStatement{
-			Columns: columns,
-			Table:   table,
-			Where:   where,
 		}
 	}
 
