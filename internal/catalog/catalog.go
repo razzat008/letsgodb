@@ -10,8 +10,9 @@ import (
 
 // TableSchema represents the schema of a table (name and columns).
 type TableSchema struct {
-	Name    string   `json:"name"`
-	Columns []string `json:"columns"`
+	Name       string   `json:"name"`
+	Columns    []string `json:"columns"`
+	PrimaryKey string   `Json:"primary_key"` // <- Add this
 }
 
 // Catalog manages table schemas and persists them to a catalog file.
@@ -64,8 +65,9 @@ func (c *Catalog) AddTable(name string, columns []string) error {
 		return fmt.Errorf("table %q already exists", name)
 	}
 	schema := &TableSchema{
-		Name:    name,
-		Columns: columns,
+		Name:       name,
+		Columns:    columns,
+		PrimaryKey: columns[0],
 	}
 	// Append to file
 	file, err := os.OpenFile(c.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
