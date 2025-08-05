@@ -27,7 +27,7 @@ const (
 	TokenInsert        TokenType = "INSERT"
 	TokenDelete        TokenType = "DELETE"
 	TokenFrom          TokenType = "FROM"
-	TokenUse           TokenType = "USER"
+	TokenUse           TokenType = "USE"
 	TokenWhere         TokenType = "WHERE"
 	TokenCreate        TokenType = "CREATE"
 	TokenTable         TokenType = "TABLE"
