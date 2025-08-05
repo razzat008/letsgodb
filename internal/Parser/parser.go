@@ -228,7 +228,7 @@ func (p *Parser) parsePrimaryExpr() Expr {
 
 // Parse CREATE TABLE statement
 func (p *Parser) parseCreateTable() *CreateTableStatement {
-	// Expect: CREATE TABLE table_name (col1, col2, ...)
+	// Expect: CREATE TABLE table_name (primary_key col1, col2, ...)
 	p.nextToken() // move to TABLE
 	if p.currentToken.Type != tok.TokenTable {
 		fmt.Printf("Syntax error: expected TABLE after CREATE, got %v (did you forget the TABLE keyword?)\n", p.currentToken.Type)
@@ -245,6 +245,12 @@ func (p *Parser) parseCreateTable() *CreateTableStatement {
 		fmt.Printf("Syntax error: expected '(' after table name, got %v\n", p.currentToken.Type)
 		return nil
 	}
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenPrimaryKey {
+		fmt.Printf("Syntax error: expected PRIMARY KEY after '(', got %v\n", p.currentToken.Type)
+		return nil
+	}
+
 	p.nextToken()
 	columns := []string{}
 	for p.currentToken.Type == tok.TokenIdentifier {
