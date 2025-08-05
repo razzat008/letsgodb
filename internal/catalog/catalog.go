@@ -106,3 +106,33 @@ func (c *Catalog) ListTables() []*TableSchema {
 	}
 	return schemas
 }
+
+// DropTable removes a table schema from the catalog and updates the catalog file.
+func (c *Catalog) DropTable(name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, exists := c.tables[name]; !exists {
+		return fmt.Errorf("table %q does not exist", name)
+	}
+	// Remove from in-memory map
+	delete(c.tables, name)
+
+	// Rewrite the catalog file with all remaining tables
+	file, err := os.OpenFile(c.filename, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open catalog file for rewriting: %w", err)
+	}
+	defer file.Close()
+
+	for _, schema := range c.tables {
+		data, err := json.Marshal(schema)
+		if err != nil {
+			return fmt.Errorf("failed to marshal schema: %w", err)
+		}
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			return fmt.Errorf("failed to write schema to catalog: %w", err)
+		}
+	}
+	return nil
+}
