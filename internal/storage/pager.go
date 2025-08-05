@@ -8,6 +8,7 @@ import (
 )
 
 const PageSize = 4096 // each page is 4kb
+const MaxCachedPages = 1024 // Limit cache to 512 pages (4MB)
 
 type Pager struct {
 	file     *os.File          // file the stores data in Disk
@@ -41,6 +42,17 @@ func NewPager(filename string) *Pager {
 		pages:    make(map[uint32][]byte),
 		pageSize: PageSize,
 		maxPage:  maxPage,
+	}
+}
+
+// evictPage removes a random page from cache when we hit the limit
+func (p *Pager) evictPage() {
+	if len(p.pages) >= MaxCachedPages {
+		// Remove first page we find (random eviction)
+		for pageNum := range p.pages {
+			delete(p.pages, pageNum)
+			break
+		}
 	}
 }
 
@@ -96,6 +108,9 @@ func (p *Pager) GetPage(pageNum uint32) []byte {
 		return page
 	}
 
+	// Check if we need to evict a page first
+	p.evictPage()
+
 	//if it is still in disk it class the ReadPage function to do the thing
 	// ReadPage does, to store data in bytes in page variable
 	page, err := p.ReadPage(int(pageNum))
@@ -123,6 +138,8 @@ FlushPage writes the given page data to disk at the specified page number.
 This is a wrapper around WritePage for convenience.
 */
 func (p *Pager) FlushPage(pageNum uint32, data []byte) error {
+	// Remove from cache after flushing to free memory
+	// delete(p.pages, pageNum)
 	return p.WritePage(int(pageNum), data)
 }
 
@@ -132,6 +149,9 @@ and returns that page number. The new page is also cached in memory.
 This should be called whenever a new row or B+Tree node needs to be stored.
 */
 func (p *Pager) AllocatePage() uint32 {
+	// Check if we need to evict a page first
+	p.evictPage()
+	
 	pageNum := uint32(p.maxPage)
 	p.maxPage++ // Increment the page count for the next allocation
 	p.pages[pageNum] = make([]byte, PageSize)
