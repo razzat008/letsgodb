@@ -38,6 +38,12 @@ func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
 		if schema == nil {
 			return fmt.Errorf("table %q does not exist", s.Table)
 		}
+		// Validate columns (skip if SELECT *)
+		if !(len(s.Columns) == 1 && s.Columns[0] == "*") {
+			if !db.ColumnsExist(schema.Columns, s.Columns) {
+				return fmt.Errorf("one or more selected columns do not exist in table %q", s.Table)
+			}
+		}
 		pager := storage.NewPager(s.Table + ".db")
 		rows := db.ReadAllRows(pager)
 		// Print header
@@ -64,6 +70,10 @@ func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
 		schema := cat.GetTable(s.Table)
 		if schema == nil {
 			return fmt.Errorf("table %q does not exist", s.Table)
+		}
+		// Validate columns
+		if !db.ColumnsMatch(schema.Columns, s.Columns) {
+			return fmt.Errorf("column mismatch: expected %v, got %v", schema.Columns, s.Columns)
 		}
 		// Flatten [][]string to []string for storage
 		var flatValues []string
@@ -97,11 +107,11 @@ func main() {
 		repl.PrintDB()
 		lineBuffer.UserInput()
 		input := string(lineBuffer.Buffer)
-		if input == "help" {
+		if input == "help;" {
 			printHelp()
 			lineBuffer.Reset()
 			continue
-		} else if input == "\\e" {
+		} else if input == "\\e;" {
 			println("Exiting letsgodb...")
 			println("Bye!!")
 			os.Exit(0)
