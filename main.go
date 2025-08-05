@@ -204,7 +204,7 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 			return fmt.Errorf("failed to list databases: %w", err)
 		}
 		if len(entries) == 0 {
-			fmt.Println("Databaes: No database found.\n Write CREATE DATABASE <database_name> to create one.")
+			fmt.Println("Databases: No database found.\n Write CREATE DATABASE <database_name> to create one.")
 		} else {
 			fmt.Println("Databases:")
 			for _, entry := range entries {
