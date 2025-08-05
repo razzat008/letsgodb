@@ -27,6 +27,7 @@ const (
 	TokenInsert        TokenType = "INSERT"
 	TokenDelete        TokenType = "DELETE"
 	TokenFrom          TokenType = "FROM"
+	TokenUse           TokenType = "USER"
 	TokenWhere         TokenType = "WHERE"
 	TokenCreate        TokenType = "CREATE"
 	TokenTable         TokenType = "TABLE"
@@ -34,6 +35,7 @@ const (
 	TokenOperator      TokenType = "OPERATOR"
 	TokenValue         TokenType = "VALUE"
 	TokenInto          TokenType = "INTO"
+	TokenShow          TokenType = "SHOW"
 	TokenValues        TokenType = "VALUES"
 	TokenUnknown       TokenType = "UNKNOWN"
 	TokenSemiColon     TokenType = "SEMICOLON"
@@ -43,10 +45,11 @@ const (
 	TokenLeftParen     TokenType = "LEFT_PAREN"
 	TokenRightParen    TokenType = "RIGHT_PAREN"
 	TokenStringLiteral TokenType = "STRING_LITERAL"
-	TokenAnd					 TokenType = "AND"
-	TokenOr						 TokenType = "OR"
+	TokenAnd           TokenType = "AND"
+	TokenOr            TokenType = "OR"
 	TokenDatabase      TokenType = "DATABASE"
-	TokenDrop					 TokenType = "DROP"
+	TokenDrop          TokenType = "DROP"
+	TokenList          TokenType = "LIST"
 )
 
 // break input string into clean token parts
@@ -121,10 +124,14 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenInsert, CurrentToken: upperToken})
 		case "AND":
 			tokens = append(tokens, Token{Type: TokenAnd, CurrentToken: upperToken})
+		case "LIST":
+			tokens = append(tokens, Token{Type: TokenList, CurrentToken: upperToken})
 		case "OR":
 			tokens = append(tokens, Token{Type: TokenOr, CurrentToken: upperToken})
 		case "INTO":
 			tokens = append(tokens, Token{Type: TokenInto, CurrentToken: upperToken})
+		case "USE":
+			tokens = append(tokens, Token{Type: TokenUse, CurrentToken: upperToken})
 		case "DELETE":
 			tokens = append(tokens, Token{Type: TokenDelete, CurrentToken: upperToken})
 		case "VALUES":
@@ -135,6 +142,8 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenTable, CurrentToken: upperToken})
 		case "DATABASE":
 			tokens = append(tokens, Token{Type: TokenDatabase, CurrentToken: upperToken})
+		case "SHOW":
+			tokens = append(tokens, Token{Type: TokenShow, CurrentToken: upperToken})
 		case "DROP":
 			tokens = append(tokens, Token{Type: TokenDrop, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
@@ -145,7 +154,7 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenComma, CurrentToken: upperToken})
 		case "*":
 			tokens = append(tokens, Token{Type: TokenAsterisk, CurrentToken: upperToken})
-		case "(": 
+		case "(":
 			tokens = append(tokens, Token{Type: TokenLeftParen, CurrentToken: upperToken})
 		case ")":
 			tokens = append(tokens, Token{Type: TokenRightParen, CurrentToken: upperToken})

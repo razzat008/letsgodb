@@ -101,5 +101,8 @@ func (c *Catalog) ListTables() []*TableSchema {
 	for _, schema := range c.tables {
 		schemas = append(schemas, schema)
 	}
+	if len(schemas) == 0 {
+		return nil
+	}
 	return schemas
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	par "github.com/razzat008/letsgodb/internal/Parser"
 	repl "github.com/razzat008/letsgodb/internal/REPl"
@@ -19,26 +20,85 @@ func printHelp() {
 	println("  Type SQL commands to interact with the database.")
 	println("  Type 'help;' to see this message.")
 	println("  Type '\\e;' to exit.")
+	println("  CREATE DATABASE dbname; to create a new database.")
+	println("  USE dbname; to switch to a database.")
 	println("  To learn more about letsgodb, visit https://github.com/razzat008/letsgodb")
 }
 
 // ExecuteStatement handles parsed statements and interacts with the catalog and row storage.
-func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
+func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catalog) error {
 	switch s := stmt.(type) {
+	case *par.CreateDatabaseStatement:
+		// CREATE DATABASE dbname;
+		dbDir := filepath.Join("data", s.DatabaseName)
+		err := os.MkdirAll(dbDir, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create database directory: %w", err)
+		}
+		// Create an empty catalog.db if not exists
+		catalogPath := filepath.Join(dbDir, "catalog.db")
+		if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
+			f, ferr := os.Create(catalogPath)
+			if ferr != nil {
+				return fmt.Errorf("failed to create catalog.db: %w", ferr)
+			}
+			f.Close()
+		}
+		fmt.Printf("Database '%s' created.\n", s.DatabaseName)
+	case *par.UseDatabaseStatement:
+		// USE dbname;
+		dbDir := filepath.Join("data", s.DatabaseName)
+		catalogPath := filepath.Join(dbDir, "catalog.db")
+		if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
+			return fmt.Errorf("database '%s' does not exist. Use CREATE DATABASE first.", s.DatabaseName)
+		}
+		newCat, err := catalog.NewCatalog(catalogPath)
+		if err != nil {
+			return fmt.Errorf("failed to load catalog for database '%s': %w", s.DatabaseName, err)
+		}
+		*cat = newCat
+		*currentDB = s.DatabaseName
+		fmt.Printf("Switched to database '%s'.\n", s.DatabaseName)
 	case *par.CreateTableStatement:
 		// CREATE TABLE
-		err := cat.AddTable(s.TableName, s.Columns)
+		if *currentDB == "" {
+			return fmt.Errorf("no database selected. Use CREATE DATABASE and USE first.")
+		}
+		err := (*cat).AddTable(s.TableName, s.Columns)
 		if err != nil {
 			return fmt.Errorf("CREATE TABLE failed: %w", err)
 		}
 		fmt.Println("Table created:", s.TableName)
+	case *par.ListTablesStatement:
+		if *currentDB == "" {
+			return fmt.Errorf("no database selected. Use CREATE DATABASE and USE first.")
+		}
+		tables := (*cat).ListTables()
+		if tables == nil {
+			fmt.Println("Tables:Empty Database")
+		} else {
+			fmt.Println("Tables:")
+			for _, t := range tables {
+				fmt.Println(" -", t.Name, " : ", t.Columns)
+			}
+		}
 	case *par.SelectStatement:
 		// SELECT
-		schema := cat.GetTable(s.Table)
+		if *currentDB == "" {
+			return fmt.Errorf("no database selected. Use CREATE DATABASE and USE first.")
+		}
+		schema := (*cat).GetTable(s.Table)
 		if schema == nil {
 			return fmt.Errorf("table %q does not exist", s.Table)
 		}
-		pager := storage.NewPager(s.Table + ".db")
+		// Validate columns (skip if SELECT *)
+		if !(len(s.Columns) == 1 && s.Columns[0] == "*") {
+			if !db.ColumnsExist(schema.Columns, s.Columns) {
+				return fmt.Errorf("one or more selected columns do not exist in table %q", s.Table)
+			}
+		}
+		tablePath := filepath.Join("data", *currentDB, s.Table+".db")
+		pager := storage.NewPager(tablePath)
 		rows := db.ReadAllRows(pager)
 		// Print header
 		fmt.Println(schema.Columns)
@@ -61,21 +121,41 @@ func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
 		}
 	case *par.InsertStatement:
 		// INSERT
-		schema := cat.GetTable(s.Table)
+		if *currentDB == "" {
+			return fmt.Errorf("no database selected. Use CREATE DATABASE and USE first.")
+		}
+		schema := (*cat).GetTable(s.Table)
 		if schema == nil {
 			return fmt.Errorf("table %q does not exist", s.Table)
+		}
+		// Validate columns
+		if !db.ColumnsMatch(schema.Columns, s.Columns) {
+			return fmt.Errorf("column mismatch: expected %v, got %v", schema.Columns, s.Columns)
 		}
 		// Flatten [][]string to []string for storage
 		var flatValues []string
 		for _, v := range s.Values {
 			flatValues = append(flatValues, v...)
 		}
-		pager := storage.NewPager(s.Table + ".db")
+		tablePath := filepath.Join("data", *currentDB, s.Table+".db")
+		pager := storage.NewPager(tablePath)
 		_, err := db.InsertRow(pager, flatValues)
 		if err != nil {
 			return fmt.Errorf("failed to insert row: %w", err)
 		}
 		fmt.Println("Row inserted!")
+
+	case *par.ShowDatabasesStatement:
+		entries, err := os.ReadDir("data")
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		fmt.Println("Databases:")
+		for _, entry := range entries {
+			if entry.IsDir() {
+				fmt.Println(" -", entry.Name())
+			}
+		}
 	default:
 		return fmt.Errorf("unsupported statement type")
 	}
@@ -84,24 +164,24 @@ func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
 
 // main entry point of the program
 func main() {
-	// Initialize the catalog (persisted in a file, e.g., "catalog.db")
-	cat, err := catalog.NewCatalog("catalog.db")
-	if err != nil {
-		println("Failed to initialize catalog:", err.Error())
-		os.Exit(1)
-	}
+	// Track the current database and catalog
+	var currentDB string
+	var cat *catalog.Catalog
+
+	// Ensure data directory exists
+	_ = os.MkdirAll("data", 0755)
 
 	lineBuffer := repl.InitLineBuffer()
 	printHelp()
 	for {
-		repl.PrintDB()
+		repl.PrintDB(currentDB)
 		lineBuffer.UserInput()
 		input := string(lineBuffer.Buffer)
-		if input == "help" {
+		if input == "help;" {
 			printHelp()
 			lineBuffer.Reset()
 			continue
-		} else if input == "\\e" {
+		} else if input == "\\e;" {
 			println("Exiting letsgodb...")
 			println("Bye!!")
 			os.Exit(0)
@@ -116,7 +196,7 @@ func main() {
 			lineBuffer.Reset()
 			continue
 		}
-		err = ExecuteStatement(stmt, cat)
+		err := ExecuteStatement(stmt, &currentDB, &cat)
 		if err != nil {
 			fmt.Println("Error:", err)
 		}

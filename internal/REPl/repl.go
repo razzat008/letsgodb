@@ -25,9 +25,13 @@ type LineBuffer struct {
 	pos            uint16 //gives the information about the position of the buffer
 }
 
-// Just prints godb in each line
-func PrintDB() {
-	fmt.Printf("godb >")
+// Prints godb prompt, showing current database if set
+func PrintDB(currentDB string) {
+	if currentDB != "" {
+		fmt.Printf("godb [%v] >", currentDB)
+	} else {
+		fmt.Printf("godb >")
+	}
 }
 
 // Initializing the buffer  f1
@@ -47,7 +51,7 @@ func (lb *LineBuffer) UserInput() {
 	// until the occurence of first newline
 	input, _ := reader.ReadBytes(';')
 	if len(input) > 0 && input[len(input)-1] == ';' { // checking if the input is not empty and ends with a semicolon
-		input = input[:len(input)] 
+		input = input[:len(input)]
 	}
 	input = bytes.TrimRight(input, "\n")
 	lb.Write(input)
