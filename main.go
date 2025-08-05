@@ -82,6 +82,44 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 				fmt.Println(" -", t.Name, " : ", t.Columns)
 			}
 		}
+	case *par.DropStatement:
+		// DROP TABLE
+		if s.Table != "" {
+			if *currentDB == "" {
+				return fmt.Errorf("no database selected. Use CREATE DATABASE and USE first.")
+			}
+			// Remove table from catalog
+			err := (*cat).DropTable(s.Table)
+			if err != nil {
+				return fmt.Errorf("DROP TABLE failed: %w", err)
+			}
+			// Delete the table's data file
+			tablePath := filepath.Join("data", *currentDB, s.Table+".db")
+			if err := os.Remove(tablePath); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to delete table file: %w", err)
+			}
+			fmt.Printf("Table '%s' dropped.\n", s.Table)
+			return nil
+		}
+
+		// DROP DATABASE
+		if s.Database != "" {
+			if *currentDB == s.Database {
+				return fmt.Errorf("cannot drop the currently selected database ('%s'). Switch to another database first.", s.Database)
+			}
+			dbDir := filepath.Join("data", s.Database)
+			if _, err := os.Stat(dbDir); os.IsNotExist(err) {
+				return fmt.Errorf("database '%s' does not exist", s.Database)
+			}
+			// Remove the entire database directory and its contents
+			if err := os.RemoveAll(dbDir); err != nil {
+				return fmt.Errorf("failed to drop database '%s': %w", s.Database, err)
+			}
+			fmt.Printf("Database '%s' dropped.\n", s.Database)
+			return nil
+		}
+
+		return fmt.Errorf("DROP: no table or database specified")
 	case *par.SelectStatement:
 		// SELECT
 		if *currentDB == "" {
