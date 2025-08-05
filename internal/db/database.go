@@ -10,13 +10,16 @@ import "github.com/razzat008/letsgodb/internal/storage"
 // serializing row : converts a slice of string value into a length prefixed byte slice
 // format: [row_length(uint16)][csv_data]
 func SerializeRow(values []string) []byte {
-	row:= strings.Join(values, ",")
-	rowBytes := []byte(row) // converting into a byte slice
-	length := uint16(len(rowBytes)) // length of the row bytes
-	buf:=make([]byte, 2+len(rowBytes))
-	binary.LittleEndian.PutUint16(buf[0:2], length)
-	copy(buf[2:], rowBytes)
-	return buf
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+	_ = writer.Write(values)
+	writer.Flush()
+	rowBytes := buf.Bytes()
+	length := uint16(len(rowBytes))
+	out := make([]byte, 2+len(rowBytes))
+	binary.LittleEndian.PutUint16(out[0:2], length)
+	copy(out[2:], rowBytes)
+	return out
 }
 
 // deserializeRow reads a length-prefixed row from data and returns the values and bytes consumed.
