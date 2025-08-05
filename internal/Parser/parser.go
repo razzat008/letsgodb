@@ -54,6 +54,12 @@ type DropStatement struct {
 
 func (d *DropStatement) StatementNode() {}
 
+type DeleteStatement struct {
+	Table string
+	Where Expr
+}
+func (d *DeleteStatement) StatementNode() {}
+
 func (c *CreateTableStatement) StatementNode() {}
 
 type Condition struct {
@@ -229,8 +235,11 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed Drop TABLE statement:", string(b))
 		return stmt
-
-	// Todo: Update, Delete, etc.
+	case tok.TokenDelete: 
+		stmt := p.parseDelete()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed Delete TABLE statement:", string(b))
+		return stmt
 	default:
 		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
 		return nil
@@ -484,5 +493,37 @@ func (p *Parser) parseDrop() *DropStatement {
 		Database: database,
 		Table:    table,
 		Columns:  columns,
+	}
+}
+
+func (p *Parser) parseDelete() *DeleteStatement {
+	//  DELETE FROM table_name [WHERE condition]
+	if p.peekToken.Type != tok.TokenFrom {
+		fmt.Printf("Syntax error: expected FROM after DELETE, got %v\n", p.peekToken.Type)
+		return nil
+	}
+	p.nextToken()
+	p.nextToken()
+
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Printf("Syntax error: expected IDENTIFIER , got %v\n", p.currentToken.Type)
+		return nil
+	}
+
+	table := p.currentToken.CurrentToken
+	p.nextToken()
+
+	var where Expr
+	if p.currentToken.Type == tok.TokenWhere {
+		p.nextToken()
+		where = p.parseExpr()
+		if where == nil {
+			return nil
+		}
+	}
+
+	return &DeleteStatement{
+		Table: table,
+		Where: where,
 	}
 }
