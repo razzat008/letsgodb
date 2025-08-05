@@ -19,32 +19,32 @@ go run .
 [_auto generated_]
 ```
 letsgodb/
-├── main.go                   # Entry point (e.g., REPL)
-├── internal/                 # Internal components (not exposed as APIs)
+├── main.go                   # Entry point (REPL, statement execution)
+├── internal/
 │   ├── repl/                 # Interactive shell
 │   │   └── repl.go
 │   ├── tokenizer/            # Tokenizing SQL-like inputs
 │   │   └── tokenizer.go
-│   ├── parser/               # SQL/command parser
+│   ├── parser/               # SQL/command parser (AST construction)
 │   │   └── parser.go
-│   ├── ast/                  # Abstract Syntax Tree node definitions
-│   │   └── node.go
-│   ├── vm/                   # Bytecode execution engine (VM)
-│   │   └── vm.go
-│   ├── btree/                # Immutable B+Tree logic
+│   ├── storage/              # Core storage layer (pager, disk persistence)
+│   │   └── pager.go
+│   ├── db/                   # High-level DB API (Insert, Select, Row serialization)
+│   │   └── database.go
+│   ├── catalog/              # Table schema catalog (metadata)
+│   │   ├── catalog.go
+│   │   └── catalog_test.go
+│   ├── btree/                # B+Tree logic (indexing, fast lookups)
 │   │   ├── btree.go
 │   │   └── node.go
-│   ├── storage/              # Core storage layer (disk persistence)
-│   ├── db/                   # High-level DB API (Insert, Delete, Query)
-│   │   └── database.go
-│   └── util/                 # Utility functions (assert, logging, etc.)
+│   └── util/                 # Utility functions (assert, etc.)
 │       └── assert.go
-├── testdata/                 # Sample files and testing fixtures
-│   └── example.db
 ├── scripts/                  # Optional setup or debug tools
 │   └── init.sh
 ├── go.mod
 ├── go.sum
+├── catalog.db                # Table schema catalog (JSON lines)
+├── users.db                  # Example table data file (rows, binary)
 └── README.md
 ```
 
