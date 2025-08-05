@@ -48,9 +48,10 @@ type CreateTableStatement struct {
 
 type DropStatement struct {
 	Database string
-	Table string
-	Columns []string
+	Table    string
+	Columns  []string
 }
+
 func (d *DropStatement) StatementNode() {}
 
 type DeleteStatement struct {
@@ -61,12 +62,12 @@ func (d *DeleteStatement) StatementNode() {}
 
 func (c *CreateTableStatement) StatementNode() {}
 
-
 type Condition struct {
 	Column   string
 	Operator string
 	Value    string
 }
+
 func (c *Condition) exprNode() {}
 
 type BinaryExpr struct {
@@ -74,6 +75,7 @@ type BinaryExpr struct {
 	Operator string // "AND" or "OR" for now
 	Right    Expr
 }
+
 func (b *BinaryExpr) exprNode() {}
 
 // Parser Struct
@@ -99,7 +101,8 @@ func (p *Parser) initParser(Tokens []tok.Token) {
 		p.peekToken = tok.Token{Type: tok.TokenEOF} // If no second token, mark as EOF
 	}
 }
-/* Parsing the where clause for Select statement */ 
+
+/* Parsing the where clause for Select statement */
 func (p *Parser) parseExpr() Expr {
 	left := p.parsePrimaryExpr()
 	if left == nil {
@@ -332,8 +335,8 @@ func (p *Parser) parseInsert() *InsertStatement {
 		fmt.Printf("Syntax error: expected INTO , got %v\n", p.peekToken.Type)
 		return nil
 	}
-	p.nextToken()
-	p.nextToken()
+	p.nextToken() // move to INTO
+	p.nextToken() // move to table name
 
 	if p.currentToken.Type != tok.TokenIdentifier {
 		fmt.Printf("Syntax error: expected table name after INTO, got %v\n", p.currentToken.Type)
@@ -353,31 +356,35 @@ func (p *Parser) parseInsert() *InsertStatement {
 		return nil
 	}
 
-	if p.currentToken.Type != tok.TokenRightParen {
-		fmt.Printf("Syntax error: expected ')' after column list, got %v\n", p.currentToken.Type)
-		return nil
-	}
-	p.nextToken()
-
+	// Expect VALUES keyword
 	if p.currentToken.Type != tok.TokenValues {
 		fmt.Printf("Syntax error: expected 'VALUES' after column list, got %v\n", p.currentToken.Type)
 		return nil
 	}
 	p.nextToken()
 
+	// Expect '(' before values
 	if p.currentToken.Type != tok.TokenLeftParen {
-		fmt.Printf("Syntax error: expected '(' after VALUES, got %v\n", p.currentToken.Type)
+		fmt.Printf("Syntax error: expected '(' before values, got %v\n", p.currentToken.Type)
 		return nil
 	}
-	p.nextToken()
+	p.nextToken() // advance past LEFT_PAREN for values
 
 	values := p.parseValues()
 	if values == nil {
 		return nil
 	}
 
+	// Expect ')' after value list
 	if p.currentToken.Type != tok.TokenRightParen {
 		fmt.Printf("Syntax error: expected ')' after value list, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken()
+
+	// Expect ';' at end
+	if p.currentToken.Type != tok.TokenSemiColon {
+		fmt.Printf("Syntax error: expected ';' at end of statement, got %v\n", p.currentToken.Type)
 		return nil
 	}
 
@@ -408,60 +415,52 @@ func (p *Parser) parseColumns() []string {
 }
 
 func (p *Parser) parseValues() [][]string {
-	if p.currentToken.Type != tok.TokenLeftParen {
-		fmt.Printf("Syntax error: expected '(' after VALUES, got %v\n", p.currentToken.Type)
-		return nil
-	}
-	p.nextToken()
-
-	values := [][]string{}
-	for p.currentToken.Type == tok.TokenStringLiteral {
-		values = append(values, []string{p.currentToken.CurrentToken})
-		p.nextToken()
-		if p.currentToken.Type == tok.TokenComma {
+	values := []string{}
+	// Accept values until we hit a RIGHT_PAREN
+	for {
+		if p.currentToken.Type == tok.TokenValue || p.currentToken.Type == tok.TokenStringLiteral || p.currentToken.Type == tok.TokenIdentifier {
+			values = append(values, p.currentToken.CurrentToken)
 			p.nextToken()
+			if p.currentToken.Type == tok.TokenComma {
+				p.nextToken()
+				continue
+			}
 		}
+		break
 	}
-
-	if p.currentToken.Type != tok.TokenRightParen {
-		fmt.Printf("Syntax error: expected ')' after value list, got %v\n", p.currentToken.Type)
-		return nil
-	}
-	p.nextToken()
-
-	return values
+	// Do NOT advance past RIGHT_PAREN here; let the caller handle it
+	return [][]string{values}
 }
 
-
-func (p *Parser) parseDrop() *DropStatement{
-	/* 
-		Examples: 
-		- Drop table table_name 
+func (p *Parser) parseDrop() *DropStatement {
+	/*
+		Examples:
+		- Drop table table_name
 		- Drop table table_name ( columns ) --> drop columns of table_name
 		- Drop table table_name1 table_name2 --> drop multiple tables
 	*/
-	var database string 
+	var database string
 	var columns []string
 	var table string
 	p.nextToken() // database or table token
 	switch p.currentToken.Type {
 	case tok.TokenTable:
-	p.nextToken()
-	if p.currentToken.Type != tok.TokenIdentifier {
+		p.nextToken()
+		if p.currentToken.Type != tok.TokenIdentifier {
 			fmt.Printf("Syntax error: expected IDENTIFIER, got %v\n", p.currentToken.Type)
 			return nil
 		}
 		table = p.currentToken.CurrentToken
 
-	if p.peekToken.Type == tok.TokenSemiColon{
+		if p.peekToken.Type == tok.TokenSemiColon {
 			break
-		} 
-			if p.peekToken.Type != tok.TokenLeftParen{
+		}
+		if p.peekToken.Type != tok.TokenLeftParen {
 			fmt.Printf("Syntax error: expected ( , got %v\n", p.peekToken.Type)
 			return nil
-		} 
-		p.nextToken() // at parenthesis 
-		p.nextToken() // at identifier 
+		}
+		p.nextToken() // at parenthesis
+		p.nextToken() // at identifier
 
 		//loops through identifier
 		for p.currentToken.Type == tok.TokenIdentifier {
@@ -475,26 +474,25 @@ func (p *Parser) parseDrop() *DropStatement{
 			fmt.Printf("Syntax error: expected ) , got %v\n", p.peekToken.Type)
 			return nil
 		}
-		 
 
 	case tok.TokenDatabase:
 		p.nextToken()
-		if p.currentToken.Type!= tok.TokenIdentifier{
+		if p.currentToken.Type != tok.TokenIdentifier {
 			fmt.Printf("Syntax error: expected IDENTIFIER, got %v\n", p.currentToken.Type)
 			return nil
 		}
 		database = p.currentToken.CurrentToken
-		if p.peekToken.Type != tok.TokenSemiColon{
+		if p.peekToken.Type != tok.TokenSemiColon {
 			fmt.Printf("Syntax error: expected Semicolon, got %v\n", p.peekToken.Type)
 			return nil
 		}
 	default:
-		fmt.Printf("Syntax error: expected Table or Database, got %v\n",p.currentToken.Type)
+		fmt.Printf("Syntax error: expected Table or Database, got %v\n", p.currentToken.Type)
 	}
 	return &DropStatement{
 		Database: database,
-		Table: table,
-		Columns : columns,
+		Table:    table,
+		Columns:  columns,
 	}
 }
 

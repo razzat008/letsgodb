@@ -8,6 +8,8 @@ import (
 	repl "github.com/razzat008/letsgodb/internal/REPl"
 	tok "github.com/razzat008/letsgodb/internal/Tokenizer"
 	catalog "github.com/razzat008/letsgodb/internal/catalog"
+	"github.com/razzat008/letsgodb/internal/db"
+	"github.com/razzat008/letsgodb/internal/storage"
 )
 
 // to print help message
@@ -20,7 +22,7 @@ func printHelp() {
 	println("  To learn more about letsgodb, visit https://github.com/razzat008/letsgodb")
 }
 
-// ExecuteStatement handles parsed statements and interacts with the catalog.
+// ExecuteStatement handles parsed statements and interacts with the catalog and row storage.
 func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
 	switch s := stmt.(type) {
 	case *par.CreateTableStatement:
@@ -36,16 +38,44 @@ func ExecuteStatement(stmt par.Statement, cat *catalog.Catalog) error {
 		if schema == nil {
 			return fmt.Errorf("table %q does not exist", s.Table)
 		}
-		fmt.Printf("Would select columns %v from table %s\n", s.Columns, s.Table)
-		// Here you would add logic to actually fetch and print data
+		pager := storage.NewPager(s.Table + ".db")
+		rows := db.ReadAllRows(pager)
+		// Print header
+		fmt.Println(schema.Columns)
+		for _, row := range rows {
+			// SELECT *: print all columns
+			if len(s.Columns) == 1 && s.Columns[0] == "*" {
+				fmt.Println(row)
+			} else {
+				// Print only requested columns
+				var selected []string
+				for _, col := range s.Columns {
+					for i, schemaCol := range schema.Columns {
+						if col == schemaCol && i < len(row) {
+							selected = append(selected, row[i])
+						}
+					}
+				}
+				fmt.Println(selected)
+			}
+		}
 	case *par.InsertStatement:
 		// INSERT
 		schema := cat.GetTable(s.Table)
 		if schema == nil {
 			return fmt.Errorf("table %q does not exist", s.Table)
 		}
-		fmt.Printf("Would insert values %v into table %s\n", s.Values, s.Table)
-		// Here you would add logic to actually insert data
+		// Flatten [][]string to []string for storage
+		var flatValues []string
+		for _, v := range s.Values {
+			flatValues = append(flatValues, v...)
+		}
+		pager := storage.NewPager(s.Table + ".db")
+		_, err := db.InsertRow(pager, flatValues)
+		if err != nil {
+			return fmt.Errorf("failed to insert row: %w", err)
+		}
+		fmt.Println("Row inserted!")
 	default:
 		return fmt.Errorf("unsupported statement type")
 	}
