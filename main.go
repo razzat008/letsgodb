@@ -19,10 +19,22 @@ func printHelp() {
 	println("Every command MUST end with a semicolon(;).")
 	println("  Type SQL commands to interact with the database.")
 	println("  Type 'help;' to see this message.")
-	println("  Type '\\e;' to exit.")
+	println("  Type [\\e;] to exit.")
 	println("  CREATE DATABASE dbname; to create a new database.")
 	println("  USE dbname; to switch to a database.")
-	println("  To learn more about letsgodb, visit https://github.com/razzat008/letsgodb")
+	println("  DROP DATABASE dbname; to drop a database.")
+}
+
+func printHelpall() {
+	println("Every command MUST end with a semicolon(;).")
+	println("  Type 'helpall;' to see list of all commands.")
+	println("  Type '\\e;' to exit.")
+	println("  -> `CREATE DATABASE dbname`")
+	println("  -> `USE dbname`")
+	println("  -> `DROP DATABASE dbname`")
+	println("  -> `CREATE TABLE tablename (column1 datatype, column2 datatype)`")
+	println("  -> `DROP TABLE tablename`")
+	println("  -> `INSERT INTO tablename (column1, column2) VALUES (value1, value2)`")
 }
 
 // ExecuteStatement handles parsed statements and interacts with the catalog and row storage.
@@ -141,6 +153,9 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 		// Print header
 		fmt.Println(schema.Columns)
 		for _, row := range rows {
+			if s.Where != nil && !db.EvalWhere(s.Where, schema.Columns, row) {
+				continue
+			}
 			// SELECT *: print all columns
 			if len(s.Columns) == 1 && s.Columns[0] == "*" {
 				fmt.Println(row)
@@ -188,10 +203,14 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 		if err != nil {
 			return fmt.Errorf("failed to list databases: %w", err)
 		}
-		fmt.Println("Databases:")
-		for _, entry := range entries {
-			if entry.IsDir() {
-				fmt.Println(" -", entry.Name())
+		if len(entries) == 0 {
+			fmt.Println("Databaes: No database found.\n Write CREATE DATABASE <database_name> to create one.")
+		} else {
+			fmt.Println("Databases:")
+			for _, entry := range entries {
+				if entry.IsDir() {
+					fmt.Println(" -", entry.Name())
+				}
 			}
 		}
 	default:
@@ -219,6 +238,10 @@ func main() {
 			printHelp()
 			lineBuffer.Reset()
 			continue
+		} else if input == "helpall;" {
+			printHelpall()
+			lineBuffer.Reset()
+			continue
 		} else if input == "\\e;" {
 			println("Exiting letsgodb...")
 			println("Bye!!")
@@ -226,7 +249,7 @@ func main() {
 			break
 		}
 		tokens := tok.Tokenizer(lineBuffer)
-		fmt.Println(tokens)
+		// fmt.Println(tokens) // print the obtained tokens
 		stmt := par.ParseProgram(tokens)
 		if stmt == nil {
 			// Print a friendly message for parse errors
