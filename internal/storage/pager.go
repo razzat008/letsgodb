@@ -145,3 +145,9 @@ This can be used for advanced operations or for closing the file.
 func (p *Pager) File() *os.File {
 	return p.file
 }
+
+// PageCount returns the number of pages currently in the file.
+// This is used by other packages to iterate over all pages.
+func (p *Pager) PageCount() int {
+	return p.maxPage
+}
