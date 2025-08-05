@@ -23,8 +23,8 @@ func EvalWhere(expr par.Expr, columns, row []string) bool {
 		if idx == -1 || idx >= len(row) {
 			return false
 		}
-		val := strings.Trim(row[idx], "'")
-		condVal := strings.Trim(e.Value, "'")
+		val := strings.Trim(row[idx], "'") // base value: which we're comparing with | in age > 18
+		condVal := strings.Trim(e.Value, "'") // value we're matching against | 18 is the condVal and other numbers are val
 		switch e.Operator {
 		case "=":
 			return val == condVal

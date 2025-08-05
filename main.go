@@ -153,7 +153,7 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 		// Print header
 		fmt.Println(schema.Columns)
 		for _, row := range rows {
-			if s.Where != nil && !db.EvalWhere(s.Where, schema.Columns, row) {
+			if s.Where != nil && !db.EvalWhere(s.Where, schema.Columns, row) { //matching every row in the database with this
 				continue
 			}
 			// SELECT *: print all columns
