@@ -1,4 +1,5 @@
-// A pager just read/writes on a fixed size file of 4kb
+// Pager: Handles reading/writing fixed-size pages (4KB) to/from disk.
+// This is the core abstraction for table row and index storage in letsgodb.
 package storage
 
 import (
@@ -43,12 +44,16 @@ func NewPager(filename string) *Pager {
 	}
 }
 
+/*
+ReadPage loads a page from disk into memory.
+If the file is smaller than a full page, the remaining bytes are zeroed out.
+This ensures every page is always PageSize bytes.
+*/
 func (p *Pager) ReadPage(pageNum int) ([]byte, error) {
 
 	offset := int64(pageNum) * int64(p.pageSize)
 
 	// Seek to the correct offset in the file
-	// for example if the pageNum is 4 it moves the read pointer to 4*4096 byte
 	_, err := p.file.Seek(offset, 0)
 	if err != nil {
 		return nil, err
@@ -79,6 +84,11 @@ func (p *Pager) ReadPage(pageNum int) ([]byte, error) {
 	return buf, nil
 }
 
+/*
+GetPage returns the page with the given page number.
+If the page is not in the cache, it is loaded from disk and cached.
+This is the main entry point for reading/modifying a page in memory.
+*/
 func (p *Pager) GetPage(pageNum uint32) []byte {
 	//if the page is already in cache it returns immediately since no need to
 	// extract from disk
@@ -98,9 +108,8 @@ func (p *Pager) GetPage(pageNum uint32) []byte {
 	return page
 }
 
-// WritePage just writes the data into the page on disk with the given
-//offset
-
+// WritePage writes the given data to the specified page number on disk.
+// The data slice must be exactly PageSize bytes.
 func (p *Pager) WritePage(pageNum int, data []byte) error {
 	if len(data) > PageSize {
 		return fmt.Errorf("data exceeds page size")
@@ -109,25 +118,30 @@ func (p *Pager) WritePage(pageNum int, data []byte) error {
 	return err
 }
 
-/* a wrapper around WritePage that writes a page to disk at the specicified
-page number*/
-
-// the wrapper need to some other functonalities that is yet to be written
+/*
+FlushPage writes the given page data to disk at the specified page number.
+This is a wrapper around WritePage for convenience.
+*/
 func (p *Pager) FlushPage(pageNum uint32, data []byte) error {
 	return p.WritePage(int(pageNum), data)
 }
 
-// it allocates a new blank page in memory and assigns the next page number
-// and returns that newly allocated page number
-// it is called whenever a new page is needed
+/*
+AllocatePage allocates a new blank page in memory, assigns it the next available page number,
+and returns that page number. The new page is also cached in memory.
+This should be called whenever a new row or B+Tree node needs to be stored.
+*/
 func (p *Pager) AllocatePage() uint32 {
 	pageNum := uint32(p.maxPage)
-	p.maxPage++ //adds and assigns the next unused page
+	p.maxPage++ // Increment the page count for the next allocation
 	p.pages[pageNum] = make([]byte, PageSize)
 	return uint32(pageNum)
 }
 
-// return the internal file pointer used by the Pagger for disk I/O
+/*
+File returns the internal file pointer used by the Pager for disk I/O.
+This can be used for advanced operations or for closing the file.
+*/
 func (p *Pager) File() *os.File {
 	return p.file
 }
