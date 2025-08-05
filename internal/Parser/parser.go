@@ -32,6 +32,16 @@ type SelectStatement struct {
 
 func (s *SelectStatement) StatementNode() {}
 
+// AST for SHOW DATABASES
+type ShowDatabasesStatement struct{}
+
+func (s *ShowDatabasesStatement) StatementNode() {}
+
+// AST for LIST TABLE
+type ListTablesStatement struct{}
+
+func (s *ListTablesStatement) StatementNode() {}
+
 type InsertStatement struct {
 	Table   string
 	Values  [][]string
@@ -58,6 +68,7 @@ type DeleteStatement struct {
 	Table string
 	Where Expr
 }
+
 func (d *DeleteStatement) StatementNode() {}
 
 func (c *CreateTableStatement) StatementNode() {}
@@ -77,6 +88,20 @@ type BinaryExpr struct {
 }
 
 func (b *BinaryExpr) exprNode() {}
+
+// AST for CREATE DATABASE
+type CreateDatabaseStatement struct {
+	DatabaseName string
+}
+
+func (c *CreateDatabaseStatement) StatementNode() {}
+
+// AST for USE DATABASE
+type UseDatabaseStatement struct {
+	DatabaseName string
+}
+
+func (u *UseDatabaseStatement) StatementNode() {}
 
 // Parser Struct
 type Parser struct {
@@ -123,6 +148,43 @@ func (p *Parser) parseExpr() Expr {
 		}
 	}
 	return left
+}
+
+func (p *Parser) parseCreateDatabase() *CreateDatabaseStatement {
+	// Expect: CREATE DATABASE dbname;
+	p.nextToken() // move to DATABASE
+	if p.currentToken.Type != tok.TokenDatabase {
+		fmt.Printf("Syntax error: expected DATABASE after CREATE, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	p.nextToken() // move to dbname
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Printf("Syntax error: expected database name, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	dbname := p.currentToken.CurrentToken
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenSemiColon {
+		fmt.Printf("Syntax error: expected ';' at end of statement, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	return &CreateDatabaseStatement{DatabaseName: dbname}
+}
+
+func (p *Parser) parseUseDatabase() *UseDatabaseStatement {
+	// Expect: USE dbname;
+	p.nextToken() // move to dbname
+	if p.currentToken.Type != tok.TokenIdentifier {
+		fmt.Printf("Syntax error: expected database name after USE, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	dbname := p.currentToken.CurrentToken
+	p.nextToken()
+	if p.currentToken.Type != tok.TokenSemiColon {
+		fmt.Printf("Syntax error: expected ';' at end of statement, got %v\n", p.currentToken.Type)
+		return nil
+	}
+	return &UseDatabaseStatement{DatabaseName: dbname}
 }
 
 func (p *Parser) parsePrimaryExpr() Expr {
@@ -226,6 +288,13 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		fmt.Println("Parsed INSERT statement:", string(b))
 		return stmt
 	case tok.TokenCreate:
+		// Check for CREATE DATABASE
+		if p.peekToken.Type == tok.TokenDatabase {
+			stmt := p.parseCreateDatabase()
+			b, _ := json.MarshalIndent(stmt, "", "  ")
+			fmt.Println("Parsed CREATE DATABASE statement:", string(b))
+			return stmt
+		}
 		stmt := p.parseCreateTable()
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed CREATE TABLE statement:", string(b))
@@ -235,11 +304,48 @@ func ParseProgram(Tokens []tok.Token) Statement {
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed Drop TABLE statement:", string(b))
 		return stmt
-	case tok.TokenDelete: 
+	case tok.TokenDelete:
 		stmt := p.parseDelete()
 		b, _ := json.MarshalIndent(stmt, "", "  ")
 		fmt.Println("Parsed Delete TABLE statement:", string(b))
 		return stmt
+	case tok.TokenUse:
+		stmt := p.parseUseDatabase()
+		b, _ := json.MarshalIndent(stmt, "", "  ")
+		fmt.Println("Parsed USE DATABASE statement:", string(b))
+		return stmt
+
+	case tok.TokenShow:
+		if p.peekToken.Type == tok.TokenIdentifier && (p.peekToken.CurrentToken == "DATABASES" || p.peekToken.CurrentToken == "databases") {
+			p.nextToken() // move to DATABASES
+			p.nextToken() // move to ;
+			if p.currentToken.Type != tok.TokenSemiColon {
+				fmt.Printf("Syntax error: expected ';' after SHOW DATABASES\n")
+				return nil
+			}
+			stmt := &ShowDatabasesStatement{}
+			b, _ := json.MarshalIndent(stmt, "", "  ")
+			fmt.Println("Parsed SHOW DATABASES statement:", string(b))
+			return stmt
+		}
+		fmt.Printf("Syntax error: expected DATABASES after SHOW\n")
+		return nil
+	case tok.TokenList:
+		// Support: LIST TABLE;
+		if p.peekToken.Type == tok.TokenTable {
+			p.nextToken() // move to TABLE
+			p.nextToken() // move to ;
+			if p.currentToken.Type != tok.TokenSemiColon {
+				fmt.Printf("Syntax error: expected ';' after LIST TABLE\n")
+				return nil
+			}
+			stmt := &ListTablesStatement{}
+			b, _ := json.MarshalIndent(stmt, "", "  ")
+			fmt.Println("Parsed LIST TABLE statement:", string(b))
+			return stmt
+		}
+		fmt.Printf("Syntax error: expected TABLE after LIST\n")
+		return nil
 	default:
 		fmt.Printf("Unknown or unsupported operation: %v\n", p.currentToken.Type)
 		return nil
