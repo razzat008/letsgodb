@@ -12,7 +12,7 @@ import (
 type TableSchema struct {
 	Name       string   `json:"name"`
 	Columns    []string `json:"columns"`
-	PrimaryKey string   `json:"primary_key"` // <- Add this
+	PrimaryKey string   `json:"primary_key"` 
 }
 
 // Catalog manages table schemas and persists them to a catalog file.
