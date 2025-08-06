@@ -29,12 +29,14 @@ func printHelpall() {
 	println("Every command MUST end with a semicolon(;).")
 	println("  Type 'helpall;' to see list of all commands.")
 	println("  Type '\\e;' to exit.")
-	println("  -> `CREATE DATABASE dbname`")
-	println("  -> `USE dbname`")
-	println("  -> `DROP DATABASE dbname`")
-	println("  -> `CREATE TABLE tablename (column1 datatype, column2 datatype)`")
-	println("  -> `DROP TABLE tablename`")
-	println("  -> `INSERT INTO tablename (column1, column2) VALUES (value1, value2)`")
+	println("  -> `CREATE DATABASE dbname;`")
+	println("  -> `USE dbname;`")
+	println("  -> `DROP DATABASE dbname;`")
+	println("  -> `CREATE TABLE tablename ( PRIMARY_KEY column1 , column2 );`")
+	println("  -> `DROP TABLE tablename`");
+	println("  -> `INSERT INTO tablename (column1, column2) VALUES (value1, value2);`")
+	println("  -> `SHOW DATABASES;`")
+	println("  -> `LIST TABLE; `")
 }
 
 // ExecuteStatement handles parsed statements and interacts with the catalog and row storage.
