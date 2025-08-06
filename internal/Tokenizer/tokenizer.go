@@ -50,6 +50,7 @@ const (
 	TokenDatabase      TokenType = "DATABASE"
 	TokenDrop          TokenType = "DROP"
 	TokenList          TokenType = "LIST"
+	TokenPrimaryKey    TokenType = "PRIMARY_KEY"
 )
 
 // break input string into clean token parts
@@ -146,6 +147,8 @@ func Tokenizer(lb *repl.LineBuffer) []Token {
 			tokens = append(tokens, Token{Type: TokenShow, CurrentToken: upperToken})
 		case "DROP":
 			tokens = append(tokens, Token{Type: TokenDrop, CurrentToken: upperToken})
+		case "PRIMARY_KEY":
+			tokens = append(tokens, Token{Type: TokenPrimaryKey, CurrentToken: upperToken})
 		case "=", ">", "<", ">=", "<=", "!=":
 			tokens = append(tokens, Token{Type: TokenOperator, CurrentToken: upperToken})
 		case ";":

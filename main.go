@@ -190,14 +190,31 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 		for _, v := range s.Values {
 			flatValues = append(flatValues, v...)
 		}
+		// primary key Implemenation
+		pkIndex := -1
+		for i, col := range schema.Columns {
+			if col == schema.PrimaryKey {
+				pkIndex = i
+				break
+			}
+		}
 		tablePath := filepath.Join("data", *currentDB, s.Table+".db")
 		pager := storage.NewPager(tablePath)
-		_, err := db.InsertRow(pager, flatValues)
-		if err != nil {
-			return fmt.Errorf("failed to insert row: %w", err)
+		if pkIndex != -1 {
+			rows := db.ReadAllRows(pager)
+			newPK := flatValues[pkIndex]
+			for _, row := range rows {
+				if row[pkIndex] == newPK {
+					return fmt.Errorf("duplicate primary key value '%s' for column '%s'", newPK, schema.PrimaryKey)
+				}
+			}
+			// Insert only if no duplicate
+			_, err := db.InsertRow(pager, flatValues)
+			if err != nil {
+				return fmt.Errorf("failed to insert row: %w", err)
+			}
+			fmt.Println("Row inserted!")
 		}
-		fmt.Println("Row inserted!")
-
 	case *par.ShowDatabasesStatement:
 		entries, err := os.ReadDir("data")
 		if err != nil {
