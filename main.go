@@ -198,9 +198,9 @@ func ExecuteStatement(stmt par.Statement, currentDB *string, cat **catalog.Catal
 				break
 			}
 		}
+		tablePath := filepath.Join("data", *currentDB, s.Table+".db")
+		pager := storage.NewPager(tablePath)
 		if pkIndex != -1 {
-			tablePath := filepath.Join("data", *currentDB, s.Table+".db")
-			pager := storage.NewPager(tablePath)
 			rows := db.ReadAllRows(pager)
 			newPK := flatValues[pkIndex]
 			for _, row := range rows {
